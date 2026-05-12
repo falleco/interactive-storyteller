@@ -10,11 +10,12 @@ datasource db {
 model User {
   id            String   @id
   email         String   @unique
-  emailVerified Boolean
+  emailVerified Boolean  @map("email_verified")
   name          String
   image         String?
-  createdAt     DateTime
-  updatedAt     DateTime
+  active        Boolean  @default(true)
+  createdAt     DateTime @map("created_at")
+  updatedAt     DateTime @map("updated_at")
 
   sessions Session[]
   accounts Account[]
@@ -24,33 +25,33 @@ model User {
 
 model Session {
   id        String   @id
-  expiresAt DateTime
+  expiresAt DateTime @map("expires_at")
   token     String   @unique
-  ipAddress String?
-  userAgent String?
-  userId    String
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  userId    String   @map("user_id")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime
-  updatedAt DateTime
+  createdAt DateTime @map("created_at")
+  updatedAt DateTime @map("updated_at")
 
   @@map("session")
 }
 
 model Account {
   id                    String    @id
-  accountId             String
-  providerId            String
-  userId                String
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  userId                String    @map("user_id")
   user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accessToken           String?
-  refreshToken          String?
-  idToken               String?
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
   scope                 String?
   password              String?
-  createdAt             DateTime
-  updatedAt             DateTime
+  createdAt             DateTime  @map("created_at")
+  updatedAt             DateTime  @map("updated_at")
 
   @@map("account")
 }
@@ -59,9 +60,9 @@ model Verification {
   id         String    @id
   identifier String
   value      String
-  expiresAt  DateTime
-  createdAt  DateTime?
-  updatedAt  DateTime?
+  expiresAt  DateTime  @map("expires_at")
+  createdAt  DateTime? @map("created_at")
+  updatedAt  DateTime? @map("updated_at")
 
   @@map("verification")
 }

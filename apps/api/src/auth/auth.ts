@@ -2,6 +2,7 @@ import { expo } from '@better-auth/expo';
 import { PrismaClient } from '@prisma/client';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
+import { APIError } from 'better-auth/api';
 import { bearer } from 'better-auth/plugins';
 import jwt from 'jsonwebtoken';
 
@@ -64,6 +65,31 @@ export const auth = betterAuth({
   },
   trustedOrigins,
   plugins: [expo(), bearer()],
+  databaseHooks: {
+    session: {
+      create: {
+        before: async (session) => {
+          const user = await prisma.user.findUnique({
+            where: { id: session.userId },
+            select: { active: true },
+          });
+
+          if (!user) {
+            throw new APIError('UNAUTHORIZED', {
+              message: 'User not found',
+            });
+          }
+
+          if (!user.active) {
+            throw new APIError('FORBIDDEN', {
+              message: 'This account has been deactivated',
+              code: 'ACCOUNT_INACTIVE',
+            });
+          }
+        },
+      },
+    },
+  },
 });
 
 export type AuthApi = typeof auth;
