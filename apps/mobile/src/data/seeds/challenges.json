@@ -1,0 +1,32 @@
+[
+  {
+    "id": "dominate-violin-notes",
+    "type": "dominate-notes",
+    "title": "Dominate Violin Notes",
+    "description": "Master the art of violin note recognition",
+    "icon": "🎻",
+    "requirement": 1,
+    "reward": 3,
+    "targetRoute": "/(tabs)/"
+  },
+  {
+    "id": "score-master",
+    "type": "score-points",
+    "title": "Score Master",
+    "description": "Achieve 1,000 points in total gameplay",
+    "icon": "🎯",
+    "requirement": 1000,
+    "reward": 5,
+    "targetRoute": "/(tabs)/"
+  },
+  {
+    "id": "battle-warrior",
+    "type": "battle-count",
+    "title": "Battle Warrior",
+    "description": "Complete 5 game battles",
+    "icon": "⚔️",
+    "requirement": 5,
+    "reward": 10,
+    "targetRoute": "/(tabs)/"
+  }
+]

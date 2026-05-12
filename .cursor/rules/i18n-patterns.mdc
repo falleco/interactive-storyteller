@@ -1,0 +1,240 @@
+---
+description: Internationalization (i18n) patterns - all user-facing text must be translated
+globs: ["**/*.tsx", "**/*.ts"]
+alwaysApply: true
+---
+
+# Internationalization (i18n) Patterns
+
+## ⚠️ CRITICAL RULE: ALL user-facing text MUST be translated!
+
+## 🌍 Using Translations
+
+### ✅ ALWAYS use useTranslation hook:
+
+```tsx
+import { useTranslation } from '~/features/i18n';
+
+function MyComponent() {
+  const { t } = useTranslation();
+  
+  return (
+    <View>
+      <Text>{t('app.welcome')}</Text>              {/* ✅ Translated */}
+      <Button>{t('app.save')}</Button>             {/* ✅ Translated */}
+      <Text>{t('errors.network')}</Text>           {/* ✅ Translated */}
+    </View>
+  );
+}
+```
+
+### ❌ NEVER hardcode user-facing text:
+
+```tsx
+// ❌ WRONG - hardcoded text
+<Text>Welcome</Text>
+<Button>Save</Button>
+<Text>Network error</Text>
+
+// ❌ WRONG - English-only
+const errorMessage = "Something went wrong";
+
+// ❌ WRONG - hardcoded labels
+<TextInput placeholder="Enter your email" />
+```
+
+## 🔢 Pluralization
+
+### ✅ Use tp() for plurals:
+
+```tsx
+const { t, tp } = useTranslation();
+
+// ✅ CORRECT - handles plurals
+<Text>{tp('plurals.item', itemCount)}</Text>
+// → "No items", "One item", "5 items"
+
+<Text>{tp('plurals.notification', notifCount)}</Text>
+// → "No notifications", "One notification", "3 notifications"
+```
+
+## 📝 Translation Key Structure
+
+Keys are organized by domain in `features/i18n/locales/en/common.json`:
+
+```json
+{
+  "app": { ... },           // Common app strings
+  "navigation": { ... },    // Navigation labels
+  "auth": { ... },          // Authentication
+  "profile": { ... },       // Profile feature
+  "card": { ... },          // Card feature
+  "send": { ... },          // Send feature
+  "settings": { ... },      // Settings
+  "errors": { ... },        // Error messages
+  "success": { ... },       // Success messages
+  "validation": { ... },    // Validation messages
+  "time": { ... },          // Time-related
+  "plurals": { ... }        // Plural forms
+}
+```
+
+## 🎯 Adding New Translations
+
+### Step 1: Add to common.json
+
+```json
+// features/i18n/locales/en/common.json
+{
+  "myFeature": {
+    "title": "My Feature",
+    "description": "Feature description",
+    "action": "Do Something",
+    "success": "Action completed",
+    "error": "Action failed"
+  }
+}
+```
+
+### Step 2: Use in component
+
+```tsx
+import { useTranslation } from '~/features/i18n';
+
+function MyFeatureScreen() {
+  const { t } = useTranslation();
+  
+  return (
+    <>
+      <Text variant="title1">{t('myFeature.title')}</Text>
+      <Text variant="body">{t('myFeature.description')}</Text>
+      <Button>{t('myFeature.action')}</Button>
+    </>
+  );
+}
+```
+
+## 🔄 Dynamic Values (Interpolation)
+
+### ✅ Use placeholders:
+
+```json
+// common.json
+{
+  "greeting": "Hello, %{name}!",
+  "balance": "Your balance: %{amount} SOPH",
+  "validation": {
+    "minLength": "Must be at least %{min} characters"
+  }
+}
+```
+
+```tsx
+// Component
+const { t } = useTranslation();
+
+<Text>{t('greeting', { name: userName })}</Text>
+<Text>{t('balance', { amount: balance })}</Text>
+<Text>{t('validation.minLength', { min: 8 })}</Text>
+```
+
+## 🎯 Common Patterns
+
+### Screen Titles:
+
+```tsx
+// app/(tabs)/profile/index.tsx
+import { useTranslation } from '~/features/i18n';
+
+export default function ProfilePage() {
+  const { t } = useTranslation();
+  
+  return (
+    <>
+      <Stack.Screen options={{ title: t('navigation.profile') }} />
+      <ProfileScreen />
+    </>
+  );
+}
+```
+
+### Form Labels:
+
+```tsx
+const { t } = useTranslation();
+
+<TextInput
+  placeholder={t('auth.email')}
+  label={t('auth.email')}
+/>
+```
+
+### Error Messages:
+
+```tsx
+const { t } = useTranslation();
+
+try {
+  await sendTransaction();
+  alert(t('success.sent'));
+} catch (error) {
+  alert(t('errors.network'));
+}
+```
+
+### Button Labels:
+
+```tsx
+const { t } = useTranslation();
+
+<Button>{t('app.save')}</Button>
+<Button>{t('app.cancel')}</Button>
+<Button>{t('send.sendMoney')}</Button>
+```
+
+## 🚫 NEVER DO:
+
+- ❌ Hardcode user-facing text in components
+- ❌ Use English strings directly
+- ❌ Skip translations for labels, buttons, messages
+- ❌ Hardcode error messages
+- ❌ Use hardcoded placeholders in inputs
+- ❌ Forget to add keys to common.json
+
+## ✅ ALWAYS DO:
+
+- ✅ Import useTranslation from '~/features/i18n'
+- ✅ Use t() for all user-facing text
+- ✅ Use tp() for plurals
+- ✅ Add new keys to common.json
+- ✅ Group keys by feature/domain
+- ✅ Use placeholders for dynamic values
+- ✅ Translate screen titles
+- ✅ Translate all UI labels
+
+## 🎯 Quick Reference
+
+```tsx
+// Import
+import { useTranslation } from '~/features/i18n';
+
+// In component
+const { t, tp } = useTranslation();
+
+// Usage
+t('app.welcome')                           // Simple text
+t('greeting', { name: 'John' })            // With variables
+tp('plurals.item', count)                  // Plurals
+t('navigation.home')                       // Navigation
+t('errors.network')                        // Errors
+t('success.saved')                         // Success messages
+```
+
+## 📋 Exceptions (when hardcoding is OK):
+
+- ✅ Developer-only debug messages: `console.log('Debug info')`
+- ✅ Technical error logs: `console.error('API call failed')`
+- ✅ Constants/enum values: `const STATUS = 'active'`
+- ✅ Technical identifiers: `queryKey: ['users']`
+
+**EVERYTHING the user sees MUST be translated - NO EXCEPTIONS!**

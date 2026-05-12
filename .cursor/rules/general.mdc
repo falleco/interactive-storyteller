@@ -1,0 +1,352 @@
+---
+alwaysApply: true
+description: general rules to apply on react-native projects
+---
+
+# React Native Conditional Rendering Safety Rules
+
+## ⚠️ NEVER use numbers in conditional rendering - they can render as "0"
+
+### ❌ DANGEROUS PATTERNS (will cause "Text strings must be rendered within <Text> component"):
+
+```tsx
+{
+  number && <Component />;
+} // 0 renders as text!
+{
+  array.length && <Component />;
+} // 0 renders as text!
+{
+  count && <Component />;
+} // 0 renders as text!
+{
+  usdPrice && <Component />;
+} // 0 renders as text!
+{
+  balance && <Component />;
+} // 0 renders as text!
+```
+
+### ✅ SAFE PATTERNS (always use these):
+
+```tsx
+{
+  number > 0 && <Component />;
+} // boolean result
+{
+  array.length > 0 && <Component />;
+} // boolean result
+{
+  count > 0 && <Component />;
+} // boolean result
+{
+  usdPrice > 0 && <Component />;
+} // boolean result
+{
+  balance > 0 && <Component />;
+} // boolean result
+{
+  Boolean(number) && <Component />;
+} // explicit boolean conversion
+{
+  !!number && <Component />;
+} // double negation to boolean
+```
+
+## 🎯 RULES FOR CONDITIONAL RENDERING:
+
+1. **Always use comparison operators** with numbers: `>`, `>=`, `<`, `<=`, `===`, `!==`
+2. **Never use numbers directly** in && conditions
+3. **Use Boolean()** or !! for explicit boolean conversion
+4. **Test edge cases** where values might be 0, null, undefined
+5. **Use optional chaining** safely: `obj?.prop > 0 && <Component />`
+
+## 📱 REACT NATIVE SPECIFIC:
+
+### ✅ Safe Text Component Usage:
+
+```tsx
+<Text>{someValue}</Text>              // Safe - explicit Text wrapper
+<Text>{number.toString()}</Text>      // Safe - explicit string conversion
+<Text>{`${number}`}</Text>            // Safe - template literal
+```
+
+### ❌ Never render values directly:
+
+```tsx
+{
+  someValue;
+} // Dangerous if not Text component
+{
+  number;
+} // Will cause error
+```
+
+## 🧪 TESTING CHECKLIST:
+
+Before committing, test these edge cases:
+
+- [ ] What happens when number = 0?
+- [ ] What happens when array.length = 0?
+- [ ] What happens when usdPrice = 0?
+- [ ] What happens when balance = 0?
+
+## 🚀 FOLLOW THESE PATTERNS:
+
+1. **For numbers**: `{value > 0 && <Component />}`
+2. **For arrays**: `{array.length > 0 && <Component />}`
+3. **For booleans**: `{isCondition && <Component />}` (already safe)
+4. **For strings**: `{string && <Component />}` (safe - empty string is falsy)
+5. **For objects**: `{object && <Component />}` (safe - null/undefined are falsy)
+
+Remember: **React renders 0 as text, but doesn't render false/null/undefined**
+
+---
+
+## 🎯 ADDITIONAL CODING STANDARDS:
+
+### ✅ File Naming Convention:
+
+- **Always use kebab-case**: `user-profile.tsx`, `send-token.ts`, `profile-api.ts`
+- **Never use camelCase**: ❌ `userProfile.tsx`, ❌ `sendToken.ts`
+
+### ✅ Component Structure:
+
+- **Keep components under 200 lines**
+- **Extract logic into custom hooks**
+- **One responsibility per component**
+
+### ✅ Import Organization:
+
+```tsx
+// 1. External libraries
+import React from "react";
+import { View } from "react-native";
+
+// 2. Internal components
+import { Button } from "~/components/button";
+
+// 3. Types
+import type { IUser } from "./types";
+```
+
+### ✅ Error Handling:
+
+```tsx
+// Always handle potential errors
+try {
+  await apiCall();
+} catch (error) {
+  console.error("Specific operation failed:", error);
+  // Show user-friendly message
+}
+```
+
+### ✅ Type Safety:
+
+```tsx
+// Always validate data before using
+if (!data || typeof data !== "string") {
+  throw new Error("Invalid data type");
+}
+```
+
+### 🚫 NEVER DO:
+
+- ❌ Render numbers directly in JSX
+- ❌ Use camelCase file names
+- ❌ Create files over 300 lines
+- ❌ Use any without explicit typing
+- ❌ Ignore error handling
+
+### 💡 REMEMBER:
+
+Your employer will be very unhappy if code doesn't work. Always prioritize:
+
+1. **Reliability** over performance
+2. **Type safety** over convenience
+3. **Error handling** over clean code
+4. **Testing** edge cases thoroughly
+
+---
+
+## 🔥 CRITICAL REACT NATIVE RULES:
+
+### ✅ Text Component Safety:
+
+```tsx
+// ✅ ALWAYS wrap text/numbers in <Text>
+<Text>{value}</Text>
+<Text>{number.toString()}</Text>
+<Text>{`${value}`}</Text>
+
+// ❌ NEVER render directly
+{value}
+{number}
+```
+
+### ✅ Conditional Rendering:
+
+```tsx
+// ✅ SAFE - boolean results
+{
+  value > 0 && <Component />;
+}
+{
+  array.length > 0 && <Component />;
+}
+{
+  Boolean(value) && <Component />;
+}
+{
+  !!value && <Component />;
+}
+
+// ❌ DANGEROUS - can render 0
+{
+  value && <Component />;
+}
+{
+  array.length && <Component />;
+}
+```
+
+### ✅ Component Size Limits:
+
+- **React Native components**: max 200 lines
+- **Hooks**: max 150 lines
+- **Utilities**: max 100 lines
+- **If larger**: decompose into smaller components
+
+### ✅ State Management:
+
+```tsx
+// ✅ SAFE - with null checks
+const safeValue = data?.value || 0;
+if (safeValue > 0) {
+  // use safeValue
+}
+
+// ❌ DANGEROUS - no protection
+{
+  data.value && <Component />;
+}
+```
+
+### 🎯 AUTO-LINT RULES:
+
+When writing conditional rendering, AI should automatically:
+
+1. Check if condition can be 0/number
+2. Convert to boolean comparison
+3. Add explicit type checking
+4. Wrap all text in <Text> components
+
+**FOLLOW THESE RULES RELIGIOUSLY - NO EXCEPTIONS!**
+
+---
+
+## 🌐 SOPHON PROJECT SPECIFIC RULES:
+
+### ✅ Web3 Address Validation:
+
+```tsx
+// ✅ ALWAYS validate addresses
+const isValidAddress = (addr: string) => {
+  return addr && addr.startsWith("0x") && addr.length === 42;
+};
+
+// ✅ SAFE address rendering
+{
+  address && (
+    <Text>
+      {address.slice(0, 6)}...{address.slice(-4)}
+    </Text>
+  );
+}
+
+// ❌ NEVER render address directly
+{
+  address;
+} // Can be undefined!
+```
+
+### ✅ Token Amount Safety:
+
+```tsx
+// ✅ SAFE amount handling
+const amount = Number.parseFloat(token.amount || "0");
+{
+  amount > 0 && <Component />;
+}
+
+// ❌ DANGEROUS
+{
+  token.amount && <Component />;
+} // Can be "0"!
+```
+
+### ✅ USD Value Display:
+
+```tsx
+// ✅ SAFE USD rendering
+{
+  usdValue > 0 && <Text>${usdValue.toFixed(2)}</Text>;
+}
+
+// ❌ DANGEROUS
+{
+  usdValue && <Text>...</Text>;
+} // Can render 0!
+```
+
+### ✅ Balance Checks:
+
+```tsx
+// ✅ SAFE balance validation
+const hasBalance = Number.parseFloat(balance) > 0;
+{
+  hasBalance && <SendButton />;
+}
+
+// ❌ DANGEROUS
+{
+  balance && <SendButton />;
+} // Can be "0"!
+```
+
+### 🎯 Sophon Token Constants:
+
+- Always import from `~/features/web3/constants/tokens`
+- Use `SOPH_TOKEN` for native token
+- Use `SUPPORTED_TOKENS` for token list
+
+### 🔐 Transaction Safety:
+
+```tsx
+// ✅ ALWAYS capture transaction data
+const txData = {
+  token: formData.selectedToken,
+  recipientAddress: formData.recipientAddress,
+  amount: formData.amount,
+};
+
+// ✅ ALWAYS validate before sending
+if (!txData.token || !txData.recipientAddress || !txData.amount) {
+  throw new Error("Missing transaction data");
+}
+```
+
+### 📝 Console Logging:
+
+```tsx
+// ✅ SAFE reactotron logging
+if (console.tron) {
+  console.tron.log("Safe message", data);
+}
+
+// ❌ DANGEROUS direct console.tron
+console.tron.log("message"); // Can break if tron not available
+```
+
+**REMEMBER: Web3 + React Native = Double the care needed!**

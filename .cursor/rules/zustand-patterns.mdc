@@ -1,0 +1,193 @@
+---
+description: Zustand state management patterns with Reactotron integration
+globs: ["**/store.ts", "**/hooks/**"]
+alwaysApply: false
+---
+
+# Zustand State Management Patterns
+
+## 🐻 Creating Stores
+
+### ✅ ALWAYS use createWithReactotron:
+
+```typescript
+// features/my-feature/store.ts
+import { createWithReactotron } from '~/reactotron/zustandReactotron';
+
+export interface MyState {
+  value: number;
+  setValue: (value: number) => void;
+  increment: () => void;
+}
+
+export const useMyStore = createWithReactotron<MyState>(
+  (set, get) => ({
+    value: 0,
+    
+    setValue: (value: number) => {
+      set({ value });
+      
+      // Development logging
+      if (__DEV__) {
+        console.log('Value updated:', value);
+      }
+    },
+    
+    increment: () => set((state) => ({ value: state.value + 1 })),
+  }),
+  'MyFeatureStore',  // ← Name for Reactotron (REQUIRED)
+);
+```
+
+### ❌ WRONG - never use plain create:
+
+```typescript
+// ❌ NO Reactotron integration, hard to debug
+import { create } from 'zustand';
+
+export const useMyStore = create<MyState>((set) => ({
+  value: 0,
+}));
+```
+
+## 🎯 Store Patterns
+
+### 1. Simple State Store:
+
+```typescript
+export interface CounterState {
+  count: number;
+  increment: () => void;
+  decrement: () => void;
+  reset: () => void;
+}
+
+export const useCounterStore = createWithReactotron<CounterState>(
+  (set) => ({
+    count: 0,
+    increment: () => set((state) => ({ count: state.count + 1 })),
+    decrement: () => set((state) => ({ count: state.count - 1 })),
+    reset: () => set({ count: 0 }),
+  }),
+  'CounterStore',
+);
+```
+
+### 2. Store with External Side Effects:
+
+```typescript
+import { updateApiToken } from '~/api/my-api';
+
+export interface AuthState {
+  token: string | null;
+  isReady: boolean;
+  setToken: (token: string | null) => void;
+  clearToken: () => void;
+}
+
+export const useAuthStore = createWithReactotron<AuthState>(
+  (set, get) => ({
+    token: null,
+    isReady: false,
+    
+    setToken: (token: string | null) => {
+      set({ token, isReady: true });
+      
+      // ✅ Sync with external systems
+      updateApiToken(() => get().token || undefined);
+      
+      if (__DEV__) {
+        console.log('Token updated:', token ? 'SET' : 'NULL');
+      }
+    },
+    
+    clearToken: () => {
+      set({ token: null, isReady: false });
+      updateApiToken(() => undefined);
+    },
+  }),
+  'AuthStore',
+);
+```
+
+## 📖 Using Stores in Components
+
+### ✅ CORRECT - selector pattern:
+
+```typescript
+import { useMyStore } from '~/features/my-feature';
+
+function MyComponent() {
+  // ✅ Select only what you need (better performance)
+  const value = useMyStore((state) => state.value);
+  const increment = useMyStore((state) => state.increment);
+  
+  return (
+    <View>
+      <Text>{value}</Text>
+      <Button onPress={increment}>Increment</Button>
+    </View>
+  );
+}
+```
+
+### ⚠️ OK but not optimal:
+
+```typescript
+function MyComponent() {
+  // ⚠️ Re-renders on ANY store change
+  const { value, increment } = useMyStore();
+  
+  return <Button onPress={increment}>{value}</Button>;
+}
+```
+
+## 🔄 Store Naming Convention
+
+### ✅ ALWAYS:
+- File name: `store.ts` (in feature folder)
+- Hook name: `useMyFeatureStore`
+- Interface name: `MyFeatureState`
+- Reactotron name: `'MyFeatureStore'`
+
+```typescript
+// features/auth/store.ts
+export interface AuthState { ... }
+export const useAuthStore = createWithReactotron<AuthState>(
+  ...
+  'AuthStore',  // ← Matches hook name
+);
+```
+
+## 🚫 NEVER DO:
+
+- ❌ Use plain `create` from zustand (no Reactotron)
+- ❌ Skip Reactotron store name
+- ❌ Create stores outside features folder
+- ❌ Forget to export store from feature's index.ts
+- ❌ Use store for server state (use React Query instead)
+
+## ✅ ALWAYS DO:
+
+- ✅ Use `createWithReactotron` for all stores
+- ✅ Provide meaningful Reactotron name
+- ✅ Add __DEV__ logging for important actions
+- ✅ Use selector pattern for better performance
+- ✅ Keep stores in `features/*/store.ts`
+- ✅ Export stores through feature's index.ts
+
+## 🎯 When to Use Zustand vs React Query
+
+### ✅ Use Zustand for:
+- Client-side state (UI state, user preferences)
+- Auth tokens
+- App settings
+- Temporary data (form state, UI flags)
+
+### ✅ Use React Query for:
+- Server state (API data)
+- Cached data
+- Data fetching
+- Data mutations
+
+**Zustand + Reactotron = Easy debugging in development!**

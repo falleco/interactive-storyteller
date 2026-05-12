@@ -1,0 +1,91 @@
+---
+description: Critical React Native conditional rendering and text safety rules
+globs: ["**/*.tsx", "**/*.jsx"]
+alwaysApply: true
+---
+
+# React Native Conditional Rendering Safety Rules
+
+## ⚠️ NEVER use numbers in conditional rendering - they can render as "0"
+
+### ❌ DANGEROUS PATTERNS (will cause "Text strings must be rendered within <Text> component"):
+```tsx
+{number && <Component />}        // 0 renders as text!
+{array.length && <Component />}  // 0 renders as text!
+{count && <Component />}         // 0 renders as text!
+{usdPrice && <Component />}      // 0 renders as text!
+{balance && <Component />}       // 0 renders as text!
+```
+
+### ✅ SAFE PATTERNS (always use these):
+```tsx
+{number > 0 && <Component />}        // boolean result
+{array.length > 0 && <Component />}  // boolean result  
+{count > 0 && <Component />}         // boolean result
+{usdPrice > 0 && <Component />}      // boolean result
+{balance > 0 && <Component />}       // boolean result
+{Boolean(number) && <Component />}   // explicit boolean conversion
+{!!number && <Component />}          // double negation to boolean
+```
+
+## 🎯 RULES FOR CONDITIONAL RENDERING:
+
+1. **Always use comparison operators** with numbers: `>`, `>=`, `<`, `<=`, `===`, `!==`
+2. **Never use numbers directly** in && conditions  
+3. **Use Boolean()** or !! for explicit boolean conversion
+4. **Test edge cases** where values might be 0, null, undefined
+5. **Use optional chaining** safely: `obj?.prop > 0 && <Component />`
+
+## 📱 REACT NATIVE TEXT COMPONENT:
+
+### ✅ ALWAYS use Text from design system:
+
+```tsx
+// ✅ CORRECT - import from nativewindui
+import { Text } from '~/components/nativewindui/Text';
+
+<Text>{someValue}</Text>              // Safe - explicit Text wrapper
+<Text>{number.toString()}</Text>      // Safe - explicit string conversion
+<Text>{\`${number}\`}</Text>            // Safe - template literal
+
+// Use with variants
+<Text variant="body">{value}</Text>
+<Text variant="caption1">{number}</Text>
+
+// ❌ WRONG - never import from react-native
+import { Text } from 'react-native';  // NEVER DO THIS!
+```
+
+### ❌ Never render values directly:
+```tsx
+{someValue}                          // Dangerous if not in Text component
+{number}                            // Will cause error
+```
+
+## 🧪 TESTING CHECKLIST:
+
+Before committing, test these edge cases:
+- [ ] What happens when number = 0?
+- [ ] What happens when array.length = 0?  
+- [ ] What happens when usdPrice = 0?
+- [ ] What happens when balance = 0?
+
+## 🚀 FOLLOW THESE PATTERNS:
+
+1. **For numbers**: `{value > 0 && <Component />}`
+2. **For arrays**: `{array.length > 0 && <Component />}`  
+3. **For booleans**: `{isCondition && <Component />}` (already safe)
+4. **For strings**: `{string && <Component />}` (safe - empty string is falsy)
+5. **For objects**: `{object && <Component />}` (safe - null/undefined are falsy)
+
+Remember: **React renders 0 as text, but doesn't render false/null/undefined**
+
+## 🎯 AUTO-LINT RULES:
+When writing conditional rendering, AI should automatically:
+1. Check if condition can be 0/number
+2. Convert to boolean comparison  
+3. Add explicit type checking
+4. Wrap all text/numbers in <Text> components from nativewindui
+5. NEVER import Text from 'react-native'
+
+**FOLLOW THESE RULES RELIGIOUSLY - NO EXCEPTIONS!**

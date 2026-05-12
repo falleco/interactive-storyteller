@@ -1,0 +1,178 @@
+---
+description: Environment variables and configuration patterns
+globs: ["**/*.ts", "**/*.tsx"]
+alwaysApply: false
+---
+
+# Environment Variables Patterns
+
+## 🔐 Environment Variable Types
+
+### 1. Runtime Variables (EXPO_PUBLIC_*)
+
+✅ Available in app at runtime:
+
+```typescript
+// ✅ CORRECT - runtime access
+const apiUrl = process.env.EXPO_PUBLIC_HOME_API_URL;
+const chainId = process.env.EXPO_PUBLIC_CHAIN_ID;
+const sentry = process.env.EXPO_PUBLIC_SENTRY_DSN;
+```
+
+### 2. Build-time Variables
+
+Only available during build (EAS, CI/CD):
+
+```bash
+SENTRY_AUTH_TOKEN=...    # Build only
+EXPO_TOKEN=...           # Build only
+```
+
+## 📝 Available Variables
+
+From `env.example`:
+
+```bash
+# Build/Deploy (not accessible in app code)
+SENTRY_AUTH_TOKEN=...
+EXPO_TOKEN=...
+
+# Runtime (accessible via process.env.EXPO_PUBLIC_*)
+EXPO_PUBLIC_SENTRY_DSN=...
+EXPO_PUBLIC_CHAIN_ID=...
+EXPO_PUBLIC_HOME_API_URL=...
+EXPO_PUBLIC_EXPLORER_URL=...
+EXPO_PUBLIC_BLOCK_EXPLORER_API_URL=...
+EXPO_PUBLIC_PARTNER_ID=...
+EXPO_PUBLIC_RECLAIM_APP_ID=...
+EXPO_PUBLIC_RECLAIM_SECRET=...
+EXPO_PUBLIC_POSTHOG_API_KEY=...
+EXPO_PUBLIC_POSTHOG_HOST=...
+```
+
+## 🎯 Usage Patterns
+
+### ✅ CORRECT - Use in API clients:
+
+```typescript
+// api/my-api.ts
+import { createHttpClient } from '~/lib/http-client';
+
+export const myApi = createHttpClient({
+  prefixUrl: process.env.EXPO_PUBLIC_MY_API_URL,  // ✅ EXPO_PUBLIC_*
+  timeout: 15000,
+});
+```
+
+### ✅ CORRECT - Use in hooks:
+
+```typescript
+// hooks/use-reclaim.ts
+export function useReclaim() {
+  const appId = process.env.EXPO_PUBLIC_RECLAIM_APP_ID!;
+  const secret = process.env.EXPO_PUBLIC_RECLAIM_SECRET!;
+  
+  return {
+    startVerification: () => verify(appId, secret),
+  };
+}
+```
+
+### ✅ CORRECT - Use in config:
+
+```typescript
+// config/web3.ts
+export const CHAIN_CONFIG = {
+  chainId: Number(process.env.EXPO_PUBLIC_CHAIN_ID),
+  explorerUrl: process.env.EXPO_PUBLIC_EXPLORER_URL,
+};
+```
+
+### ❌ WRONG - Missing EXPO_PUBLIC_ prefix:
+
+```typescript
+// ❌ This will be undefined at runtime!
+const apiUrl = process.env.HOME_API_URL;  // Missing EXPO_PUBLIC_
+```
+
+## 🔒 Type Safety
+
+### ✅ Add types to expo-env.d.ts:
+
+```typescript
+// expo-env.d.ts
+declare global {
+  namespace NodeJS {
+    interface ProcessEnv {
+      EXPO_PUBLIC_HOME_API_URL?: string;
+      EXPO_PUBLIC_CHAIN_ID?: string;
+      EXPO_PUBLIC_SENTRY_DSN?: string;
+      // ... add all EXPO_PUBLIC_* variables
+    }
+  }
+}
+```
+
+## 🧪 Development vs Production
+
+### ✅ Use __DEV__ for environment-specific code:
+
+```typescript
+// ✅ CORRECT - conditional based on build mode
+if (__DEV__) {
+  console.log('API URL:', process.env.EXPO_PUBLIC_HOME_API_URL);
+}
+
+// ✅ CORRECT - development-only features
+{__DEV__ && <DeveloperTools />}
+```
+
+## 📋 Environment File Structure
+
+```
+project/
+├── .env                    # Defaults (committed to git)
+├── .env.local              # Local overrides (gitignored)
+├── env.example             # Documentation (committed)
+└── expo-env.d.ts           # TypeScript types (committed)
+```
+
+## 🚫 NEVER DO:
+
+- ❌ Access build-time variables in app code
+- ❌ Forget EXPO_PUBLIC_ prefix for runtime vars
+- ❌ Commit secrets to .env (use .env.local)
+- ❌ Hardcode API URLs (use env vars)
+- ❌ Use NODE_ENV for runtime checks (use __DEV__)
+
+## ✅ ALWAYS DO:
+
+- ✅ Use EXPO_PUBLIC_* prefix for runtime variables
+- ✅ Type env vars in expo-env.d.ts
+- ✅ Use __DEV__ for dev/prod checks
+- ✅ Document all vars in env.example
+- ✅ Keep secrets in .env.local (gitignored)
+- ✅ Use env vars in API clients
+- ✅ Check for undefined before using
+
+## 🎯 EAS Secrets
+
+For CI/CD and EAS builds:
+
+```bash
+# Create EAS secret
+eas secret:create --name SENTRY_AUTH_TOKEN --value "your_token"
+
+# Reference in eas.json
+{
+  "build": {
+    "production": {
+      "env": {
+        "SENTRY_AUTH_TOKEN": "@SENTRY_AUTH_TOKEN"
+      }
+    }
+  }
+}
+```
+
+**Environment variables are configuration, not code!**

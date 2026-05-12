@@ -1,0 +1,450 @@
+---
+description: General coding standards and best practices for the project
+globs: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"]
+alwaysApply: true
+---
+
+# Coding Standards
+
+## 🌍 Language Requirements
+
+### ✅ ALWAYS use English for code and documentation:
+
+```tsx
+// ✅ CORRECT - English code
+export function calculateUserBalance(userId: string): number {
+  // Calculate total balance
+  const balance = getUserData(userId).balance;
+  return balance;
+}
+
+// ✅ CORRECT - English comments
+// This function validates the user input
+// Returns true if valid, false otherwise
+
+// ✅ CORRECT - English variable names
+const userName = 'John';
+const isValid = true;
+const userBalance = 100;
+
+// ❌ WRONG - Non-English code
+export function вычислитьБаланс(userId: string): number { ... }
+const имяПользователя = 'John';
+
+// ❌ WRONG - Mixed language comments
+// Эта функция проверяет данные
+```
+
+### ✅ English applies to:
+- ✅ Function names
+- ✅ Variable names
+- ✅ Type names
+- ✅ Interface names
+- ✅ Class names
+- ✅ Comments
+- ✅ Documentation (README.md)
+- ✅ Commit messages
+- ✅ Code comments
+- ✅ Error messages (for developers)
+
+### 📝 Exception - User-facing text:
+```tsx
+// ❌ WRONG - hardcoded user text in English
+<Text>Welcome to our app</Text>
+
+// ✅ CORRECT - use i18n for user text
+const { t } = useTranslation();
+<Text>{t('app.welcome')}</Text>
+```
+
+**Code = English. User-facing text = i18n translations.**
+
+---
+
+## ✅ File Naming Convention:
+- **Always use kebab-case**: `user-profile.tsx`, `send-token.ts`, `profile-api.ts`
+- **Never use camelCase**: ❌ `userProfile.tsx`, ❌ `sendToken.ts`
+
+## ✅ Component Structure:
+- **Keep components under 200 lines**
+- **Extract logic into custom hooks**
+- **One responsibility per component**
+- **One component per file** - NO EXCEPTIONS!
+
+## 🚫 NEVER write complex logic inside components!
+
+### ❌ WRONG - Complex logic in component:
+
+```tsx
+function MyComponent() {
+  // ❌ BAD - complex algorithm in component
+  const calculateComplexValue = () => {
+    let result = 0;
+    for (let i = 0; i < data.length; i++) {
+      const value = data[i].amount * rates[i];
+      if (value > threshold) {
+        result += value * 0.95;
+      } else {
+        result += value;
+      }
+    }
+    return result;
+  };
+
+  // ❌ BAD - data transformation logic
+  const processedData = rawData.map(item => ({
+    ...item,
+    formatted: formatCurrency(item.amount),
+    isValid: validateItem(item),
+    priority: calculatePriority(item),
+  }));
+
+  return <View>{/* render */}</View>;
+}
+```
+
+### ✅ CORRECT - Extract to utilities:
+
+```tsx
+// features/my-feature/utils/calculations.ts
+export function calculateComplexValue(data: Item[], rates: number[], threshold: number): number {
+  let result = 0;
+  for (let i = 0; i < data.length; i++) {
+    const value = data[i].amount * rates[i];
+    result += value > threshold ? value * 0.95 : value;
+  }
+  return result;
+}
+
+// features/my-feature/utils/data-processing.ts
+export function processItems(items: RawItem[]): ProcessedItem[] {
+  return items.map(item => ({
+    ...item,
+    formatted: formatCurrency(item.amount),
+    isValid: validateItem(item),
+    priority: calculatePriority(item),
+  }));
+}
+```
+
+```tsx
+// Component is now clean
+import { calculateComplexValue } from '../utils/calculations';
+import { processItems } from '../utils/data-processing';
+
+function MyComponent() {
+  const result = calculateComplexValue(data, rates, threshold);
+  const processed = processItems(rawData);
+  
+  return <View>{/* render */}</View>;
+}
+```
+
+### ✅ CORRECT - Extract to custom hooks:
+
+```tsx
+// features/my-feature/hooks/use-processed-data.ts
+export function useProcessedData(rawData: RawItem[]) {
+  return useMemo(() => {
+    return rawData.map(item => ({
+      ...item,
+      formatted: formatCurrency(item.amount),
+      isValid: validateItem(item),
+      priority: calculatePriority(item),
+    }));
+  }, [rawData]);
+}
+```
+
+```tsx
+// Component uses hook
+import { useProcessedData } from '../hooks/use-processed-data';
+
+function MyComponent() {
+  const processedData = useProcessedData(rawData);
+  return <View>{/* render */}</View>;
+}
+```
+
+## 🧩 Component Decomposition - Break Complex Render into Smaller Components
+
+### ❌ WRONG - Complex render in single component:
+
+```tsx
+function MyScreen() {
+  return (
+    <View>
+      {/* ❌ BAD - too much JSX in one component */}
+      <View className="p-4">
+        <View className="flex-row items-center mb-4">
+          <Image source={avatar} />
+          <View>
+            <Text variant="heading">{user.name}</Text>
+            <Text variant="caption1">{user.email}</Text>
+          </View>
+        </View>
+        
+        <View className="mb-6">
+          {stats.map(stat => (
+            <View key={stat.id} className="flex-row justify-between p-2">
+              <Text>{stat.label}</Text>
+              <Text variant="heading">{stat.value}</Text>
+            </View>
+          ))}
+        </View>
+        
+        <View>
+          {transactions.map(tx => (
+            <View key={tx.id} className="p-4 border-b">
+              <Text>{tx.title}</Text>
+              <Text variant="caption1">{tx.date}</Text>
+              <Text>{tx.amount}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    </View>
+  );
+}
+```
+
+### ✅ CORRECT - Decompose into smaller components:
+
+```tsx
+// features/my-feature/components/user-header.tsx
+export function UserHeader({ user }: { user: User }) {
+  return (
+    <View className="flex-row items-center mb-4">
+      <Image source={user.avatar} />
+      <View>
+        <Text variant="heading">{user.name}</Text>
+        <Text variant="caption1">{user.email}</Text>
+      </View>
+    </View>
+  );
+}
+
+// features/my-feature/components/stats-list.tsx
+export function StatsList({ stats }: { stats: Stat[] }) {
+  return (
+    <View className="mb-6">
+      {stats.map(stat => (
+        <StatItem key={stat.id} stat={stat} />
+      ))}
+    </View>
+  );
+}
+
+// features/my-feature/components/stat-item.tsx
+export function StatItem({ stat }: { stat: Stat }) {
+  return (
+    <View className="flex-row justify-between p-2">
+      <Text>{stat.label}</Text>
+      <Text variant="heading">{stat.value}</Text>
+    </View>
+  );
+}
+
+// features/my-feature/components/transaction-list.tsx
+export function TransactionList({ transactions }: { transactions: Transaction[] }) {
+  return (
+    <View>
+      {transactions.map(tx => (
+        <TransactionItem key={tx.id} transaction={tx} />
+      ))}
+    </View>
+  );
+}
+
+// features/my-feature/components/transaction-item.tsx
+export function TransactionItem({ transaction }: { transaction: Transaction }) {
+  return (
+    <View className="p-4 border-b">
+      <Text>{transaction.title}</Text>
+      <Text variant="caption1">{transaction.date}</Text>
+      <Text>{transaction.amount}</Text>
+    </View>
+  );
+}
+
+// features/my-feature/components/my-screen.tsx - NOW CLEAN!
+import { UserHeader } from './user-header';
+import { StatsList } from './stats-list';
+import { TransactionList } from './transaction-list';
+
+export function MyScreen() {
+  return (
+    <View className="p-4">
+      <UserHeader user={user} />
+      <StatsList stats={stats} />
+      <TransactionList transactions={transactions} />
+    </View>
+  );
+}
+```
+
+## 📋 Component File Rules
+
+### ✅ ONE component per file:
+
+```tsx
+// ✅ CORRECT
+// user-header.tsx
+export function UserHeader() { ... }
+
+// user-avatar.tsx  
+export function UserAvatar() { ... }
+
+// user-info.tsx
+export function UserInfo() { ... }
+```
+
+### ❌ WRONG - Multiple components in one file:
+
+```tsx
+// ❌ WRONG - multiple components
+// user-components.tsx
+export function UserHeader() { ... }
+export function UserAvatar() { ... }
+export function UserInfo() { ... }
+```
+
+**Exception:** Helper types or small internal utilities can be in same file.
+
+## 🎯 When to Decompose Components
+
+### Decompose when:
+- ✅ Component > 100 lines of JSX
+- ✅ Repeated render patterns
+- ✅ Complex nested structures (> 3 levels)
+- ✅ Map rendering with complex items
+- ✅ Conditional render blocks with complex JSX
+- ✅ Reusable UI patterns
+
+### Signs you need decomposition:
+- 🚨 Too many nested Views (> 4 levels)
+- 🚨 Long map() with complex JSX
+- 🚨 Repeated JSX structures
+- 🚨 Hard to understand what component does
+- 🚨 Component over 150 lines
+
+## 🎯 When to Extract Logic
+
+### Extract to UTILITY file when:
+- ✅ Pure calculation/transformation functions
+- ✅ Validation logic
+- ✅ Formatting functions
+- ✅ Complex algorithms
+- ✅ Business logic
+- ✅ Reusable across components
+
+### Extract to HOOK when:
+- ✅ Uses React hooks (useState, useEffect, etc.)
+- ✅ Component lifecycle logic
+- ✅ Side effects
+- ✅ API data fetching/mutations
+- ✅ Form state management
+- ✅ Reusable stateful logic
+
+### Keep in COMPONENT when:
+- ✅ Simple event handlers (1-3 lines)
+- ✅ Simple state (useState, local UI state)
+- ✅ JSX rendering logic
+- ✅ Simple prop transformations
+
+## 📂 File Organization
+
+```
+features/my-feature/
+├── components/
+│   ├── my-screen.tsx           # ✅ Main screen, < 200 lines
+│   ├── user-header.tsx         # ✅ Decomposed component
+│   ├── stats-list.tsx          # ✅ Decomposed component
+│   ├── stat-item.tsx           # ✅ Small item component
+│   └── transaction-list.tsx    # ✅ Decomposed component
+├── hooks/
+│   ├── use-my-data.ts         # ✅ React Query hook
+│   └── use-form-state.ts      # ✅ Form logic hook
+├── utils/
+│   ├── calculations.ts         # ✅ Pure functions
+│   ├── validators.ts           # ✅ Validation logic
+│   └── formatters.ts           # ✅ Formatting functions
+└── types/
+    └── my-types.ts
+```
+
+## ✅ Component Size Limits:
+- **React Native components**: max 200 lines
+- **Hooks**: max 150 lines  
+- **Utilities**: max 100 lines
+- **If larger**: decompose into smaller pieces
+
+## ✅ Import Organization:
+```tsx
+// 1. External libraries
+import React from 'react';
+import { View } from 'react-native';
+
+// 2. Internal components
+import { Button } from '~/components/button';
+
+// 3. Hooks and utilities
+import { useMyData } from '../hooks/use-my-data';
+import { calculateValue } from '../utils/calculations';
+
+// 4. Types
+import type { IUser } from './types';
+```
+
+## ✅ Error Handling:
+```tsx
+// Always handle potential errors
+try {
+  await apiCall();
+} catch (error) {
+  console.error('Specific operation failed:', error);
+  // Show user-friendly message
+}
+```
+
+## ✅ Type Safety:
+```tsx
+// Always validate data before using
+if (!data || typeof data !== 'string') {
+  throw new Error('Invalid data type');
+}
+```
+
+## 🚫 NEVER DO:
+- ❌ Write complex algorithms in components
+- ❌ Put business logic in components
+- ❌ Write data transformations in components
+- ❌ Create multiple components in one file
+- ❌ Keep complex render in single component (decompose!)
+- ❌ Render numbers directly in JSX
+- ❌ Use camelCase file names  
+- ❌ Create files over 300 lines
+- ❌ Use any without explicit typing
+- ❌ Ignore error handling
+- ❌ Duplicate code - create utility functions
+
+## ✅ ALWAYS DO:
+- ✅ Extract complex logic to utils/ folder
+- ✅ Extract stateful logic to hooks/ folder
+- ✅ Keep components focused on rendering
+- ✅ Create utility functions for calculations
+- ✅ Use custom hooks for React-specific logic
+- ✅ Decompose complex JSX into smaller components
+- ✅ One component per file (descriptive name)
+- ✅ Name files descriptively (what they do)
+- ✅ Keep files small and focused
+
+## 💡 REMEMBER:
+Your employer will be very unhappy if code doesn't work. Always prioritize:
+1. **Reliability** over performance
+2. **Type safety** over convenience  
+3. **Error handling** over clean code
+4. **Testing** edge cases thoroughly
+5. **Never duplicate code** - when you see duplication, create utility function and share it
+6. **Components are for rendering** - logic goes in hooks/utils
+7. **Decompose complex render** - create smaller helper components in separate files

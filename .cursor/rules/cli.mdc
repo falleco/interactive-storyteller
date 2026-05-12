@@ -1,0 +1,18 @@
+---
+description: command line rules
+alwaysApply: true
+---
+
+This project uses expo and bun. So everytime you need to execute any client line command, please use:
+
+```
+bun run <command>
+```
+
+and for instalation, aalways use bunx with expo:
+
+```
+bunx expo install <packages>
+```
+
+That way we always install the correct package version for the currently installed Expo.

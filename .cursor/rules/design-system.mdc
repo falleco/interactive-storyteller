@@ -1,0 +1,204 @@
+---
+description: Design system rules - components, colors, and typography
+globs: ["**/components/**", "**/features/**/*.tsx", "**/app/**/*.tsx"]
+alwaysApply: true
+---
+
+# Design System Rules
+
+## 📦 Component Usage
+
+### ✅ ALWAYS use components from design system:
+
+```tsx
+// ✅ CORRECT - use Text from nativewindui
+import { Text } from '~/components/nativewindui/Text';
+
+// ❌ WRONG - never use React Native Text directly
+import { Text } from 'react-native';
+```
+
+### ✅ All UI components from components folder:
+
+```tsx
+// ✅ CORRECT - use design system components
+import { Button } from '~/components/nativewindui/Button';
+import { Avatar } from '~/components/nativewindui/Avatar';
+import { Sheet } from '~/components/nativewindui/Sheet';
+
+// ❌ WRONG - don't create custom buttons, use design system
+<TouchableOpacity>...</TouchableOpacity>  // Use Button instead!
+```
+
+## 🎨 Colors
+
+### ✅ ALWAYS use colors from theme/colors.ts:
+
+```tsx
+// ✅ CORRECT - import from theme
+import { COLORS } from '~/theme/colors';
+
+// Use in styles
+<View style={{ backgroundColor: COLORS.light.background }}>
+
+// ✅ CORRECT - use Tailwind color classes (preferred)
+<View className="bg-background">
+<Text className="text-foreground">
+
+// ❌ WRONG - hardcoded colors
+<View style={{ backgroundColor: '#ffffff' }}>
+<View style={{ backgroundColor: 'rgb(255, 255, 255)' }}>
+<Text style={{ color: '#000000' }}>
+```
+
+### Available design tokens from theme/colors.ts:
+
+**Light/Dark mode colors:**
+- `COLORS.light.background` / `COLORS.dark.background`
+- `COLORS.light.foreground` / `COLORS.dark.foreground`
+- `COLORS.light.card` / `COLORS.dark.card`
+- `COLORS.light.primary` / `COLORS.dark.primary`
+- `COLORS.light.destructive` / `COLORS.dark.destructive`
+- `COLORS.light.grey`, `grey2`, `grey3`, `grey4`, `grey5`, `grey6`
+
+**Neutral:**
+- `COLORS.white`
+- `COLORS.black`
+
+## 📝 Typography
+
+### ✅ ALWAYS use Text variants from design system:
+
+```tsx
+// ✅ CORRECT - use semantic variants
+<Text variant="largeTitle">Page Title</Text>
+<Text variant="title1">Section Title</Text>
+<Text variant="title2">Subsection</Text>
+<Text variant="heading">Heading</Text>
+<Text variant="body">Body text</Text>
+<Text variant="callout">Callout</Text>
+<Text variant="subhead">Subheading</Text>
+<Text variant="footnote">Small text</Text>
+<Text variant="caption1">Caption</Text>
+<Text variant="caption2">Tiny caption</Text>
+
+// ✅ CORRECT - use color variants
+<Text color="primary">Primary text</Text>
+<Text color="secondary">Secondary text</Text>
+<Text color="tertiary">Tertiary text</Text>
+<Text color="quarternary">Quarternary text</Text>
+
+// ❌ WRONG - custom font sizes
+<Text style={{ fontSize: 16 }}>Text</Text>
+<Text className="text-[16px]">Text</Text>
+
+// ❌ WRONG - custom font weights without variants
+<Text style={{ fontWeight: 'bold' }}>Text</Text>
+```
+
+### Available typography variants:
+
+| Variant | Size | Use Case |
+|---------|------|----------|
+| `largeTitle` | 36px (4xl) | Page titles |
+| `title1` | 24px (2xl) | Main section titles |
+| `title2` | 22px | Section headers |
+| `title3` | 20px (xl) | Subsection headers |
+| `heading` | 17px | Content headings (semibold) |
+| `body` | 17px | Body text (default) |
+| `callout` | 16px (base) | Callouts, labels |
+| `subhead` | 15px | Subheadings |
+| `footnote` | 13px | Small notes |
+| `caption1` | 12px (xs) | Captions |
+| `caption2` | 11px | Tiny text |
+
+## 🏗️ Component Organization
+
+### Shared components:
+```
+components/
+  nativewindui/       # Design system components
+    Text.tsx
+    Button.tsx
+    Avatar.tsx
+  back-button.tsx     # Custom shared components
+  container.tsx
+```
+
+### Feature-specific components:
+```
+features/
+  my-feature/
+    components/       # Only for this feature
+      my-local-component.tsx
+```
+
+### ✅ RULES for component placement:
+
+1. **Reusable across features** → `components/`
+2. **Feature-specific** → `features/{feature}/components/`
+3. **Never duplicate** design system components
+4. **Always extend** from design system when needed
+
+## 🎯 Examples
+
+### ✅ GOOD - Using design system correctly:
+
+```tsx
+import { Text } from '~/components/nativewindui/Text';
+import { Button } from '~/components/nativewindui/Button';
+import { COLORS } from '~/theme/colors';
+
+function MyComponent() {
+  return (
+    <View className="bg-background p-4">
+      <Text variant="title1" color="primary">
+        Welcome
+      </Text>
+      <Text variant="body" color="secondary">
+        This uses design system properly
+      </Text>
+      <Button>Click Me</Button>
+    </View>
+  );
+}
+```
+
+### ❌ BAD - Not using design system:
+
+```tsx
+import { Text as RNText } from 'react-native';  // ❌ Wrong import
+
+function MyComponent() {
+  return (
+    <View style={{ backgroundColor: '#ffffff' }}>  {/* ❌ Hardcoded color */}
+      <RNText style={{ fontSize: 24, fontWeight: 'bold' }}>  {/* ❌ Custom typography */}
+        Welcome
+      </RNText>
+      <TouchableOpacity>  {/* ❌ Should use Button */}
+        <RNText>Click Me</RNText>
+      </TouchableOpacity>
+    </View>
+  );
+}
+```
+
+## 🚫 NEVER DO:
+
+- ❌ Import Text from 'react-native'
+- ❌ Use hardcoded colors (#ffffff, rgb(0,0,0))
+- ❌ Use custom fontSize without variants
+- ❌ Create custom buttons instead of using Button component
+- ❌ Put shared components in features folder
+- ❌ Duplicate design system components
+
+## ✅ ALWAYS DO:
+
+- ✅ Import Text from '~/components/nativewindui/Text'
+- ✅ Use COLORS from '~/theme/colors' or Tailwind classes
+- ✅ Use Text variants for typography
+- ✅ Use Button component for all buttons
+- ✅ Put reusable components in components/
+- ✅ Keep feature-specific components in features/{feature}/components/
+
+**DESIGN SYSTEM IS LAW - NEVER DEVIATE WITHOUT GOOD REASON!**

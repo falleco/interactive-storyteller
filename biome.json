@@ -1,0 +1,127 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.1.2/schema.json",
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
+  "javascript": {
+    "parser": {
+      "unsafeParameterDecoratorsEnabled": true
+    },
+    "formatter": {
+      "quoteStyle": "single"
+    }
+  },
+  "json": {
+    "formatter": {
+      "indentStyle": "space",
+      "indentWidth": 2
+    }
+  },
+  "files": {
+    "includes": [
+      "**/*.mjs",
+      "**/*.mts",
+      "**/*.js",
+      "**/*.css",
+      "**/*.json",
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.vue",
+      "!**/CHANGELOG.md",
+      "!**/.changeset",
+      "!**/node_modules",
+      "!**/.next",
+      "!**/.idea",
+      "!**/build",
+      "!**/dist",
+      "!**/out",
+      "!**/coverage",
+      "!**/.vite",
+      "!**/.nuxt",
+      "!**/.expo",
+      "!**/.rnstorybook/storybook.requires.ts",
+      "!**/prisma/generated",
+      "!**/android",
+      "!**/ios"
+    ]
+  },
+  "linter": {
+    "includes": [
+      "**/*.mjs",
+      "**/*.mts",
+      "**/*.js",
+      "**/*.css",
+      "**/*.json",
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.vue",
+      "!**/CHANGELOG.md",
+      "!**/.changeset",
+      "!**/node_modules",
+      "!**/.next",
+      "!**/.idea",
+      "!**/build",
+      "!**/dist",
+      "!**/out",
+      "!**/coverage",
+      "!**/.vite",
+      "!**/.expo",
+      "!**/.rnstorybook/storybook.requires.ts",
+      "!**/prisma/generated",
+      "!**/android",
+      "!**/ios"
+    ],
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "a11y": {
+        "noSvgWithoutTitle": "off",
+        "useButtonType": "off",
+        "useKeyWithClickEvents": "off"
+      },
+      "complexity": {
+        "noBannedTypes": "off",
+        "noForEach": "off",
+        "noStaticOnlyClass": "off"
+      },
+      "correctness": {
+        "useExhaustiveDependencies": "off",
+        "noUnusedVariables": "off",
+        "noUnusedImports": "off",
+        "noUnusedFunctionParameters": "off"
+      },
+      "style": {
+        "noUnusedTemplateLiteral": "off",
+        "noNonNullAssertion": "off",
+        "noParameterAssign": "off",
+        "useAsConstAssertion": "error",
+        "useDefaultParameterLast": "error",
+        "useEnumInitializers": "error",
+        "useSelfClosingElements": "error",
+        "useSingleVarDeclarator": "error",
+        "useNumberNamespace": "error",
+        "noInferrableTypes": "error",
+        "noUselessElse": "error"
+      },
+      "suspicious": {
+        "noExplicitAny": "off",
+        "noImplicitAnyLet": "off",
+        "noPrototypeBuiltins": "off"
+      }
+    }
+  },
+  "formatter": {
+    "indentWidth": 2,
+    "indentStyle": "space"
+  },
+  "overrides": [
+    {
+      "includes": ["apps/api/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useImportType": "off"
+          }
+        }
+      }
+    }
+  ]
+}

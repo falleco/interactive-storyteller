@@ -1,0 +1,182 @@
+---
+description: API client and React Query patterns for the project
+globs: ["**/api/**", "**/hooks/**", "**/features/**/api/**", "**/features/**/hooks/**"]
+alwaysApply: false
+---
+
+# API and React Query Patterns
+
+## 🌐 HTTP Client Architecture
+
+### Step 1: Create API Client (for new hosts/services)
+
+When adding a new API service, create a client in `api/` folder:
+
+```typescript
+// api/my-service-api.ts
+import { createHttpClient } from '~/lib/http-client';
+
+// Create service-specific HTTP client
+export const myServiceApi = createHttpClient({
+  prefixUrl: process.env.EXPO_PUBLIC_MY_SERVICE_API_URL,  // ✅ Use env var
+  timeout: 15000,
+  retry: {
+    limit: 2,
+    methods: ['get'],
+    statusCodes: [408, 413, 429, 500, 502, 503, 504],
+  },
+  headers: {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  },
+});
+```
+
+### Step 2: Define API Service Methods
+
+Create service-specific functions using the HTTP client:
+
+```typescript
+// features/my-feature/api/my-feature-api.ts
+import { myServiceApi } from '~/api/my-service-api';
+
+export interface MyData {
+  id: string;
+  name: string;
+}
+
+// ✅ GET request
+export async function getMyData(id: string): Promise<MyData> {
+  return myServiceApi.get<MyData>(\`/data/\${id}\`);
+}
+
+// ✅ POST request
+export async function createMyData(data: Partial<MyData>): Promise<MyData> {
+  return myServiceApi.post<MyData>('/data', data);
+}
+
+// ✅ With query params
+export async function searchData(query: string): Promise<MyData[]> {
+  return myServiceApi.get<MyData[]>('/data/search', { q: query });
+}
+```
+
+### Step 3: Create React Query Hook
+
+In `features/my-feature/hooks/`:
+
+```typescript
+// features/my-feature/hooks/use-my-data.ts
+import { useQuery } from '@tanstack/react-query';
+import { getMyData } from '../api/my-feature-api';
+
+export function useMyData(id: string) {
+  return useQuery({
+    queryKey: ['my-data', id],
+    queryFn: () => getMyData(id),
+    enabled: !!id,  // ✅ Only fetch when id exists
+    staleTime: 5 * 60 * 1000,  // 5 minutes
+  });
+}
+
+// ✅ For mutations:
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { createMyData } from '../api/my-feature-api';
+
+export function useCreateMyData() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: createMyData,
+    onSuccess: () => {
+      // ✅ Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: ['my-data'] });
+    },
+  });
+}
+```
+
+## 🎯 RULES FOR API INTEGRATION:
+
+1. **Always create HTTP client first** for new hosts in `api/` folder
+2. **Use env variables** for API URLs: `process.env.EXPO_PUBLIC_*`
+3. **Create service methods** in feature-specific `api/` folder
+4. **Wrap in React Query hooks** in feature-specific `hooks/` folder
+5. **Type everything** - request/response types
+6. **Handle errors** properly in hooks
+7. **Use query keys consistently** - `['feature', ...params]`
+
+## ✅ EXAMPLE: Adding New API Service
+
+```bash
+# 1. Add env variable
+# .env
+EXPO_PUBLIC_MY_SERVICE_API_URL=https://api.example.com
+
+# 2. Create HTTP client
+# api/my-service-api.ts
+export const myServiceApi = createHttpClient({ prefixUrl: ... });
+
+# 3. Create API methods
+# features/my-feature/api/my-feature-api.ts
+export async function getMyData() { ... }
+
+# 4. Create React Query hook
+# features/my-feature/hooks/use-my-data.ts
+export function useMyData() { return useQuery({ ... }); }
+
+# 5. Use in component
+# features/my-feature/components/my-component.tsx
+const { data, isLoading } = useMyData();
+```
+
+## 🔒 Authentication
+
+HttpClient automatically adds auth headers:
+
+```typescript
+// Already configured in http-client.ts
+// Auth token added to all requests automatically
+hooks: {
+  beforeRequest: [
+    (request) => {
+      const authToken = getAuthToken?.();
+      if (authToken) {
+        request.headers.set('Authorization', \`Bearer \${authToken}\`);
+      }
+    }
+  ]
+}
+```
+
+## 📝 React Query Best Practices:
+
+```typescript
+// ✅ GOOD - proper query key structure
+queryKey: ['users', userId, 'profile']
+
+// ✅ GOOD - conditional fetching
+enabled: !!userId
+
+// ✅ GOOD - error handling
+onError: (error) => {
+  console.error('Failed to fetch:', error);
+  // Show user-friendly message
+}
+
+// ✅ GOOD - optimistic updates
+onMutate: async (newData) => {
+  await queryClient.cancelQueries({ queryKey: ['data'] });
+  const previous = queryClient.getQueryData(['data']);
+  queryClient.setQueryData(['data'], newData);
+  return { previous };
+}
+
+// ❌ BAD - no query key structure
+queryKey: ['data']
+
+// ❌ BAD - always enabled
+enabled: true  // Will fetch even when params are invalid
+```
+
+**ALWAYS FOLLOW THIS PATTERN: HTTP Client → API Service → React Query Hook → Component**

@@ -1,0 +1,8 @@
+{
+  "android": {
+    "package": "com.anonymous.wondertalesroot"
+  },
+  "ios": {
+    "bundleIdentifier": "com.anonymous.wondertalesroot"
+  }
+}

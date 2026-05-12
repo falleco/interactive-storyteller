@@ -1,0 +1,153 @@
+---
+description: Feature module organization and structure patterns
+globs: ["**/features/**"]
+alwaysApply: false
+---
+
+# Feature Organization Patterns
+
+## 📁 Feature Module Structure
+
+Each feature MUST follow this structure:
+
+```
+features/my-feature/
+├── components/          # Feature-specific components
+│   └── my-component.tsx
+├── hooks/              # Feature-specific hooks
+│   └── use-my-hook.ts
+├── api/                # API methods (if needed)
+│   └── my-api.ts
+├── types/              # TypeScript types
+│   └── my-types.ts
+├── utils/              # Feature-specific utilities
+│   └── my-utils.ts
+├── store.ts            # Zustand store (if needed)
+├── index.ts            # Public API exports
+└── README.md           # Feature documentation
+```
+
+## 🎯 Public API Pattern (index.ts)
+
+### ✅ ALWAYS export through index.ts:
+
+```typescript
+// features/my-feature/index.ts
+
+// Export components
+export { MyComponent } from './components/my-component';
+export { MyScreen } from './components/my-screen';
+
+// Export hooks
+export { useMyData } from './hooks/use-my-data';
+export { useMyFeature } from './hooks/use-my-feature';
+
+// Export types
+export type { MyData, MyConfig } from './types/my-types';
+
+// Export store (if applicable)
+export { useMyStore } from './store';
+```
+
+### ✅ Usage in other parts of the app:
+
+```typescript
+// ✅ CORRECT - import from feature's public API
+import { MyComponent, useMyData, type MyData } from '~/features/my-feature';
+
+// ❌ WRONG - never import from internal paths
+import { MyComponent } from '~/features/my-feature/components/my-component';
+```
+
+## 📝 README Requirements
+
+Every feature MUST have a README.md with:
+
+```markdown
+# 🎯 Feature Name
+
+Brief description of what this feature does.
+
+## Usage
+
+\`\`\`typescript
+// Example usage code
+import { MyComponent } from '~/features/my-feature';
+
+function App() {
+  return <MyComponent />;
+}
+\`\`\`
+
+## Structure
+
+- List of main files and their purpose
+
+## Features
+
+- List of key features
+```
+
+## 🔄 Feature Dependencies
+
+### ✅ Features can depend on:
+- ✅ Shared components from `~/components/`
+- ✅ Design system components from `~/components/nativewindui/`
+- ✅ Other features via their public API (`index.ts`)
+- ✅ Shared utilities from `~/lib/`
+- ✅ Global providers
+
+### ❌ Features should NOT:
+- ❌ Import from internal paths of other features
+- ❌ Have circular dependencies
+- ❌ Duplicate code (use shared utilities)
+
+## 🎯 Examples
+
+### Feature with Store:
+
+```
+features/auth/
+├── components/
+│   └── auth-sync-provider.tsx
+├── hooks/
+│   └── use-sync-sophon-token.ts
+├── store.ts                    ← Zustand store
+├── index.ts                    ← Export store + hooks
+└── README.md
+```
+
+### Feature with API:
+
+```
+features/profile/
+├── api/
+│   └── profile-api.ts          ← API methods
+├── components/
+│   └── profile-screen.tsx
+├── hooks/
+│   ├── use-profile.ts          ← React Query hook
+│   └── use-profile-screen.ts
+├── types/
+│   └── profile.types.ts
+├── index.ts
+└── README.md
+```
+
+## 🚫 NEVER DO:
+
+- ❌ Export everything from a feature (be selective)
+- ❌ Skip index.ts (it's your public API contract)
+- ❌ Import from other features' internal paths
+- ❌ Create features without README
+- ❌ Mix shared components with feature components
+
+## ✅ ALWAYS DO:
+
+- ✅ Create index.ts for every feature
+- ✅ Document usage in README.md
+- ✅ Keep feature-specific code inside feature folder
+- ✅ Use public API pattern for imports
+- ✅ Follow the folder structure consistently
+
+**Feature modules are self-contained and well-documented!**

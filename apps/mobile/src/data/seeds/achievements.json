@@ -1,0 +1,44 @@
+[
+  {
+    "id": "first_game",
+    "title": "First Steps",
+    "description": "Complete your first game",
+    "icon": "🎵",
+    "unlockCondition": "Complete 1 game"
+  },
+  {
+    "id": "streak_5",
+    "title": "Hot Streak",
+    "description": "Get a 5-note streak",
+    "icon": "🔥",
+    "unlockCondition": "Achieve a streak of 5"
+  },
+  {
+    "id": "streak_10",
+    "title": "Blazing Notes",
+    "description": "Get a 10-note streak",
+    "icon": "🔥🔥",
+    "unlockCondition": "Achieve a streak of 10"
+  },
+  {
+    "id": "perfect_game",
+    "title": "Perfect Pitch",
+    "description": "Complete a game with 100% accuracy",
+    "icon": "⭐",
+    "unlockCondition": "Complete a game with 100% accuracy"
+  },
+  {
+    "id": "notation_master",
+    "title": "Notation Master",
+    "description": "Play games in both notation systems",
+    "icon": "🎼",
+    "unlockCondition": "Play games in both Letter and Solfege notation"
+  },
+  {
+    "id": "dedicated_player",
+    "title": "Dedicated Player",
+    "description": "Play 50 games",
+    "icon": "🏆",
+    "unlockCondition": "Complete 50 games"
+  }
+]
