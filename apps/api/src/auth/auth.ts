@@ -5,6 +5,11 @@ import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { APIError } from 'better-auth/api';
 import { bearer } from 'better-auth/plugins';
 import jwt from 'jsonwebtoken';
+import {
+  getUserEventsQueue,
+  type UserCreatedJobData,
+  UserEventJobName,
+} from '../queue/user-events.queue';
 
 const prisma = new PrismaClient();
 
@@ -66,6 +71,34 @@ export const auth = betterAuth({
   trustedOrigins,
   plugins: [expo(), bearer()],
   databaseHooks: {
+    user: {
+      create: {
+        after: async (user) => {
+          try {
+            const payload: UserCreatedJobData = {
+              userId: user.id,
+              email: user.email,
+              name: user.name ?? null,
+              image: user.image ?? null,
+              emailVerified: Boolean(user.emailVerified),
+              createdAt:
+                user.createdAt instanceof Date
+                  ? user.createdAt.toISOString()
+                  : new Date().toISOString(),
+            };
+            await getUserEventsQueue().add(UserEventJobName.Created, payload, {
+              attempts: 5,
+              backoff: { type: 'exponential', delay: 1_000 },
+              removeOnComplete: { age: 60 * 60 * 24, count: 1_000 },
+              removeOnFail: { age: 60 * 60 * 24 * 7 },
+            });
+          } catch (error) {
+            // Do not block sign-up if the queue is unreachable — just log.
+            console.error('[auth] Failed to enqueue user.created job:', error);
+          }
+        },
+      },
+    },
     session: {
       create: {
         before: async (session) => {

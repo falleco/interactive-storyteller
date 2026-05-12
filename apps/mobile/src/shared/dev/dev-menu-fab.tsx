@@ -7,6 +7,7 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
+import { QaToolIcon } from '~/shared/components/icons/qa-tool-icon';
 import { ThemedText } from '~/shared/components/themed-text';
 
 const FAB_SIZE = 44;
@@ -107,7 +108,7 @@ function DevMenuFabInner() {
         ]}
       >
         <ThemedText style={{ color: '#fff', fontSize: 18, fontWeight: '900' }}>
-          ⚙
+          <QaToolIcon size={24} color="N5" />
         </ThemedText>
       </Animated.View>
     </GestureDetector>

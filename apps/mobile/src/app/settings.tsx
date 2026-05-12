@@ -1,52 +1,19 @@
 import { router } from 'expo-router';
-import type React from 'react';
 import { Alert, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useGameContext } from '~/features/game';
-import { ModalHeader, SettingsList, useAppSettings } from '~/features/settings';
+import { SettingsList } from '~/features/settings';
 import { FloatingButton } from '~/shared/components/core/floating-button';
+import { useAuth } from '~/shared/hooks/use-auth';
 import { useThemeColor } from '~/shared/hooks/use-theme-color';
-import type { SettingSection } from '~/shared/types/music';
-import { SettingActionType } from '~/shared/types/music';
+import type { SettingSection } from '~/shared/types/settings';
+import { SettingActionType } from '~/shared/types/settings';
 
 export default function SettingsScreen() {
   const backgroundColor = useThemeColor({}, 'background');
-  const { appSettings, updateUsername, toggleConnection } = useAppSettings();
-  const { gameSettings } = useGameContext();
+  const { user } = useAuth();
 
   const handleClose = () => {
     router.back();
-  };
-
-  const handleChangeUsername = () => {
-    Alert.prompt(
-      'Change Username',
-      'Enter your new username:',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Save',
-          onPress: async (text?: string) => {
-            if (text?.trim()) {
-              await updateUsername(text.trim());
-              Alert.alert('Success', 'Username updated successfully!');
-            }
-          },
-        },
-      ],
-      'plain-text',
-      appSettings.username,
-    );
-  };
-
-  const handleConnectToSave = async () => {
-    await toggleConnection();
-    Alert.alert(
-      appSettings.isConnected ? 'Disconnected' : 'Connected',
-      appSettings.isConnected
-        ? 'Your progress will no longer be synced'
-        : 'Your progress is now being synced to the cloud',
-    );
   };
 
   const handleComingSoon = (feature: string) => {
@@ -65,115 +32,12 @@ export default function SettingsScreen() {
         {
           id: 'account-info',
           title: 'Account',
-          subtitle: `Signed in as ${appSettings.username}`,
+          subtitle: user
+            ? `Signed in as ${user.name || user.email}`
+            : 'Not signed in',
           icon: '👤',
           actionType: SettingActionType.NAVIGATION,
           route: '/settings/account',
-        },
-        {
-          id: 'username',
-          title: 'Change Username',
-          subtitle: `Current: ${appSettings.username}`,
-          icon: '✏️',
-          actionType: SettingActionType.ACTION,
-          onPress: handleChangeUsername,
-        },
-        {
-          id: 'connect',
-          title: 'Connect to Save Progress',
-          subtitle: appSettings.isConnected ? 'Connected' : 'Not connected',
-          icon: appSettings.isConnected ? '☁️' : '📱',
-          actionType: SettingActionType.TOGGLE,
-          isEnabled: appSettings.isConnected,
-          onPress: handleConnectToSave,
-        },
-      ],
-    },
-    {
-      id: 'gameplay',
-      title: 'Gameplay',
-      items: [
-        {
-          id: 'music-notation',
-          title: 'Music Notation',
-          subtitle: `Current: ${gameSettings.gameSettings.notationSystem === 'solfege' ? 'Solfege' : 'Letter Names'}`,
-          icon: '🎼',
-          actionType: SettingActionType.NAVIGATION,
-          route: '/settings/music-notation',
-        },
-        {
-          id: 'difficulty',
-          title: 'Difficulty',
-          subtitle: `Current: ${gameSettings.gameSettings.difficulty.charAt(0).toUpperCase() + gameSettings.gameSettings.difficulty.slice(1)}`,
-          icon: '🎯',
-          actionType: SettingActionType.NAVIGATION,
-          route: '/settings/difficulty',
-        },
-        {
-          id: 'helpers',
-          title: 'Learning Helpers',
-          subtitle: `Note labels: ${gameSettings.gameSettings.showNoteLabels ? 'Visible' : 'Hidden'}`,
-          icon: '🎓',
-          actionType: SettingActionType.NAVIGATION,
-          route: '/settings/helpers',
-        },
-      ],
-    },
-    {
-      id: 'general',
-      title: 'General',
-      items: [
-        {
-          id: 'push-notifications',
-          title: 'Push Notifications',
-          subtitle: appSettings.pushNotifications.enabled
-            ? 'Enabled'
-            : 'Disabled',
-          icon: '🔔',
-          actionType: SettingActionType.NAVIGATION,
-          route: '/settings/push-notifications',
-        },
-        {
-          id: 'sound-vibrations',
-          title: 'Sound and Vibrations',
-          subtitle: `Volume: ${appSettings.soundAndVibrations.volume}%`,
-          icon: '🔊',
-          actionType: SettingActionType.NAVIGATION,
-          route: '/settings/sound-vibrations',
-        },
-        {
-          id: 'graphics',
-          title: 'Graphics',
-          subtitle: `Quality: ${appSettings.graphics.quality.charAt(0).toUpperCase() + appSettings.graphics.quality.slice(1)}`,
-          icon: '🎨',
-          actionType: SettingActionType.NAVIGATION,
-          route: '/settings/graphics',
-        },
-        {
-          id: 'networking',
-          title: 'Networking',
-          subtitle: appSettings.networking.autoSync
-            ? 'Auto sync enabled'
-            : 'Manual sync only',
-          icon: '🌐',
-          actionType: SettingActionType.NAVIGATION,
-          route: '/settings/networking',
-        },
-        {
-          id: 'bug-report',
-          title: 'Bug Report',
-          subtitle: 'Report issues or suggest improvements',
-          icon: '🐛',
-          actionType: SettingActionType.ACTION,
-          onPress: () => handleComingSoon('Bug reporting'),
-        },
-        {
-          id: 'check-update',
-          title: 'Check for Updates',
-          subtitle: 'See if a new version is available',
-          icon: '🔄',
-          actionType: SettingActionType.ACTION,
-          onPress: () => handleComingSoon('Update checking'),
         },
       ],
     },
@@ -196,14 +60,6 @@ export default function SettingsScreen() {
           icon: '🐦',
           actionType: SettingActionType.EXTERNAL_LINK,
           externalUrl: 'https://twitter.com',
-        },
-        {
-          id: 'credits',
-          title: 'Credits',
-          subtitle: 'Meet the team behind Staff Hero',
-          icon: '👥',
-          actionType: SettingActionType.ACTION,
-          onPress: () => handleComingSoon('Credits'),
         },
         {
           id: 'terms',

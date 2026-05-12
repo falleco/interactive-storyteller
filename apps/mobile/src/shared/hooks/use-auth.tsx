@@ -8,7 +8,6 @@ import {
   useMemo,
 } from 'react';
 import { Platform } from 'react-native';
-import { ensureUserData } from '~/data/storage/user-data-store';
 import { authClient } from '~/shared/auth/auth-client';
 
 interface AuthUser {
@@ -51,24 +50,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { data, isPending, refetch } = authClient.useSession();
   const user = data?.user ? toAuthUser(data.user) : null;
   const bearerToken = data?.session?.token ?? null;
-
-  useEffect(() => {
-    if (user?.id) {
-      ensureUserData(user.id).catch((error) => {
-        console.error('Failed to ensure local user data', error);
-      });
-    }
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (data?.session) {
-      console.log('[auth] session:', {
-        token: data.session.token,
-        expiresAt: data.session.expiresAt,
-        userId: data.session.userId,
-      });
-    }
-  }, [data?.session]);
 
   const signInWithGoogle = useCallback(async () => {
     console.log('[auth] signInWithGoogle: calling signIn.social');

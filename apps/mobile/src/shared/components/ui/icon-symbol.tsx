@@ -21,6 +21,9 @@ const MAPPING = {
   'paperplane.fill': 'send',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
+  'gearshape.fill': 'settings',
+  'person.fill': 'person',
+  'square.stack.3d.up.fill': 'inventory-2',
 } as IconMapping;
 
 /**

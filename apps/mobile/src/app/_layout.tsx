@@ -7,14 +7,12 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import '@/global.css';
 
-import { useEffect } from 'react';
-import { GameProvider } from '~/features/game';
-import { OnboardingGate } from '~/features/onboarding/onboarding-gate';
 import { DevMenuFab } from '~/shared/dev/dev-menu-fab';
 import { AuthProvider } from '~/shared/hooks/use-auth';
 import { useColorScheme } from '~/shared/hooks/use-color-scheme';
@@ -50,79 +48,31 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AuthProvider>
-          <GameProvider>
-            <ThemeProvider
-              value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}
-            >
-              <OnboardingGate />
-              <Stack>
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                <Stack.Screen
-                  name="luthier"
-                  options={{
-                    headerShown: false,
-                    animation: 'slide_from_bottom',
-                  }}
-                />
-                <Stack.Screen
-                  name="bag"
-                  options={{
-                    headerShown: false,
-                    animation: 'slide_from_bottom',
-                  }}
-                />
-                <Stack.Screen
-                  name="settings"
-                  options={{
-                    presentation: 'card',
-                    animation: 'slide_from_left',
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="challenges"
-                  options={{
-                    presentation: 'card',
-                    headerShown: false,
-                    animation: 'slide_from_right',
-                  }}
-                />
-                <Stack.Screen
-                  name="game-modes"
-                  options={{
-                    presentation: 'transparentModal',
-                    headerShown: false,
-                    animation: 'fade',
-                  }}
-                />
-                <Stack.Screen
-                  name="game"
-                  options={{
-                    presentation: 'card',
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="onboarding"
-                  options={{ headerShown: false }}
-                />
-                <Stack.Screen
-                  name="modal"
-                  options={{ presentation: 'modal', headerShown: false }}
-                />
-                <Stack.Screen
-                  name="dev-menu"
-                  options={{
-                    presentation: 'modal',
-                    headerShown: false,
-                    animation: 'slide_from_bottom',
-                  }}
-                />
-              </Stack>
-              <DevMenuFab />
-              <StatusBar style="auto" />
-            </ThemeProvider>
-          </GameProvider>
+          <ThemeProvider
+            value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}
+          >
+            <Stack>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="settings"
+                options={{
+                  presentation: 'card',
+                  animation: 'slide_from_left',
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="dev-menu"
+                options={{
+                  presentation: 'modal',
+                  headerShown: false,
+                  animation: 'slide_from_bottom',
+                }}
+              />
+            </Stack>
+            <DevMenuFab />
+            <StatusBar style="auto" />
+          </ThemeProvider>
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

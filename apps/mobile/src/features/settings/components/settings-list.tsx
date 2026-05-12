@@ -4,8 +4,8 @@ import { Alert, Pressable, Switch, View } from 'react-native';
 import { ThemedText } from '~/shared/components/themed-text';
 import { useThemeColor } from '~/shared/hooks/use-theme-color';
 import { cn } from '~/shared/lib/cn';
-import type { SettingItem, SettingSection } from '~/shared/types/music';
-import { SettingActionType } from '~/shared/types/music';
+import type { SettingItem, SettingSection } from '~/shared/types/settings';
+import { SettingActionType } from '~/shared/types/settings';
 
 interface SettingsListProps {
   sections: SettingSection[];
@@ -69,7 +69,9 @@ function SettingItemRow({ item, onPress }: SettingItemRowProps) {
               className="text-sm mr-2"
               style={{ color: secondaryTextColor }}
             >
-              {item.currentValue || 'Not set'}
+              {item.currentValue !== undefined && item.currentValue !== null
+                ? String(item.currentValue)
+                : 'Not set'}
             </ThemedText>
             <ThemedText
               className="text-lg"

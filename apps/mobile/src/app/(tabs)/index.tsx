@@ -1,96 +1,34 @@
-import * as Haptics from 'expo-haptics';
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import React from 'react';
-import { View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  FlatButton,
-  FlatButtonText,
-} from '~/shared/components/core/flat-button';
-import { ParallaxBg } from '~/shared/components/parallax-bg';
+import { Pressable, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '~/shared/components/themed-text';
+import { IconSymbol } from '~/shared/components/ui/icon-symbol';
+import { useThemeColor } from '~/shared/hooks/use-theme-color';
 
 export default function HomeTab() {
-  const { top } = useSafeAreaInsets();
-
-  const handleSettingsPress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push('/settings');
-  };
-
-  const handleChallengesPress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push('/challenges');
-  };
-
-  const handleStartGamePress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push('/game-modes');
-  };
+  const backgroundColor = useThemeColor({}, 'background');
+  const iconColor = useThemeColor({}, 'text');
 
   return (
-    <>
-      <ParallaxBg className="absolute top-0 left-0 right-0 bottom-0 bg-[#1B1B3C]" />
-      <View
-        className="flex-1 flex-col justify-center items-center"
-        style={{ paddingTop: top }}
-      >
-        <View className="w-full h-auto flex-grow-0 flex-row justify-between items-center">
-          <FlatButton
-            size="lg"
-            onPress={handleSettingsPress}
-            className="flex-col items-center"
-          >
-            <Image
-              style={{ width: 72, height: 72, marginLeft: -16, marginTop: -12 }}
-              source={require('@/assets/images/hud/settings.png')}
-            />
-            <ThemedText
-              type="label"
-              tone="secondary"
-              className="-mt-4 -ml-4 text-[#ffffff] font-pixelpurl-medium text-xl"
-            >
-              settings
-            </ThemedText>
-          </FlatButton>
-          <FlatButton
-            size="lg"
-            onPress={handleChallengesPress}
-            className="justify-start flex-col items-center"
-          >
-            <Image
-              style={{ width: 48, height: 48, marginTop: 6 }}
-              source={require('@/assets/images/hud/book.png')}
-            />
-            <ThemedText
-              type="label"
-              tone="secondary"
-              className="text-[#ffffff] font-pixelpurl-medium text-xl"
-            >
-              challenges
-            </ThemedText>
-          </FlatButton>
-        </View>
-        <View className="flex-grow" />
-        <View className="flex-grow-0 justify-center items-center pb-56">
-          <FlatButton
-            size="xl"
-            onPress={handleStartGamePress}
-            className="w-full max-w-sm -mb-6 rounded-2xl px-4 py-2 border-red-400 bg-red-800  border-4"
-          >
-            <FlatButtonText
-              tone="secondary"
-              className="text-[#ffffff] font-pixelpurl-medium text-2xl"
-            >
-              START PLAYING
-            </FlatButtonText>
-          </FlatButton>
-        </View>
+    <SafeAreaView className="flex-1" style={{ backgroundColor }}>
+      <View className="flex-row justify-end px-5 pt-2">
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Open settings"
+          onPress={() => router.push('/settings')}
+          hitSlop={12}
+          className="p-2"
+        >
+          <IconSymbol name="gearshape.fill" size={26} color={iconColor} />
+        </Pressable>
       </View>
-      <StatusBar style="light" hidden={true} />
-    </>
+
+      <View className="flex-1 items-center justify-center px-6">
+        <ThemedText className="text-3xl font-black mb-2">Home</ThemedText>
+        <ThemedText className="text-base text-gray-500 text-center">
+          Placeholder for the Home tab.
+        </ThemedText>
+      </View>
+    </SafeAreaView>
   );
 }
