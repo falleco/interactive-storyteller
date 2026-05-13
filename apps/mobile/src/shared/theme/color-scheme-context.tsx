@@ -10,6 +10,7 @@ import {
   Image as SkiaImage,
   vec,
 } from '@shopify/react-native-skia';
+import { StatusBar } from 'expo-status-bar';
 import { colorScheme as nwColorScheme } from 'nativewind';
 import type { ReactNode, RefObject } from 'react';
 import {
@@ -54,9 +55,28 @@ const STORAGE_KEY = '@wondertales/theme-mode';
 const TRANSITION_DURATION = 650;
 const PRE_SNAPSHOT_FRAME_WAIT_MS = 16;
 
+/**
+ * `expo-status-bar` `style` prop semantics: the value is the **text colour**
+ * of the status bar, not the theme name. So:
+ *   - light theme → `style="dark"`  (dark text on light background)
+ *   - dark theme  → `style="light"` (light text on dark background)
+ */
+type StatusBarStyle = 'light' | 'dark';
+
+function statusStyleFor(scheme: ColorSchemeName): StatusBarStyle {
+  return scheme === 'dark' ? 'light' : 'dark';
+}
+
 interface InternalState {
   active: boolean;
   scheme: ColorSchemeName;
+  /**
+   * What `style` prop to feed the StatusBar component. Kept separate from
+   * `scheme` so we can delay the flip until the reveal animation is over —
+   * otherwise the text colour would mismatch the snapshot during the
+   * transition.
+   */
+  statusBarStyle: StatusBarStyle;
   overlay1: SkImage | null;
   overlay2: SkImage | null;
 }
@@ -84,6 +104,7 @@ const initialScheme: ColorSchemeName =
 const initialState: InternalState = {
   active: false,
   scheme: initialScheme,
+  statusBarStyle: statusStyleFor(initialScheme),
   overlay1: null,
   overlay2: null,
 };
@@ -112,6 +133,7 @@ export function ColorSchemeProvider({ children }: Props) {
         dispatch({
           ...state,
           scheme: stored,
+          statusBarStyle: statusStyleFor(stored),
         });
       }
     });
@@ -126,6 +148,9 @@ export function ColorSchemeProvider({ children }: Props) {
 
   return (
     <View style={styles.root}>
+      {/* Status bar style is driven by our state, not by `auto`, so we can
+          delay the flip until the reveal animation completes. */}
+      <StatusBar style={state.statusBarStyle} />
       <View ref={ref} style={styles.fill} collapsable={false}>
         <ColorSchemeReactContext.Provider
           value={{ ...state, dispatch, ref, transition, circle }}
@@ -183,9 +208,19 @@ export function useColorSchemeContext() {
     async (x: number, y: number) => {
       if (active) return;
       const next: ColorSchemeName = scheme === 'light' ? 'dark' : 'light';
+      // While the reveal animates, keep the status-bar text colour matching
+      // the OLD theme (what's still visible underneath/around the growing
+      // circle). At the very end we flip it to match the new theme.
+      const transitionalStatusBarStyle = statusStyleFor(scheme);
 
       // Reset overlays + record where the circle starts.
-      dispatch({ active: true, scheme, overlay1: null, overlay2: null });
+      dispatch({
+        active: true,
+        scheme,
+        statusBarStyle: transitionalStatusBarStyle,
+        overlay1: null,
+        overlay2: null,
+      });
 
       const maxRadius = Math.max(...corners.map((c) => dist(c, { x, y })));
       circle.value = { x, y, r: maxRadius };
@@ -196,14 +231,26 @@ export function useColorSchemeContext() {
 
       // 2. Show it as a static overlay — the user no longer sees the live
       //    tree, so we can swap classes underneath.
-      dispatch({ active: true, scheme, overlay1, overlay2: null });
+      dispatch({
+        active: true,
+        scheme,
+        statusBarStyle: transitionalStatusBarStyle,
+        overlay1,
+        overlay2: null,
+      });
 
       // 3. Switch theme. NativeWind triggers `dark:` variants throughout
       //    the tree.
       await wait(PRE_SNAPSHOT_FRAME_WAIT_MS);
       nwColorScheme.set(next);
       AsyncStorage.setItem(STORAGE_KEY, next).catch(() => undefined);
-      dispatch({ active: true, scheme: next, overlay1, overlay2: null });
+      dispatch({
+        active: true,
+        scheme: next,
+        statusBarStyle: transitionalStatusBarStyle,
+        overlay1,
+        overlay2: null,
+      });
 
       // 4. Let RN paint the new theme.
       await wait(PRE_SNAPSHOT_FRAME_WAIT_MS);
@@ -211,12 +258,35 @@ export function useColorSchemeContext() {
       // 5. Snapshot the new theme so it can be masked into the growing
       //    circle on top of `overlay1`.
       const overlay2 = await makeImageFromView(ref as RefObject<View>);
-      dispatch({ active: true, scheme: next, overlay1, overlay2 });
+      dispatch({
+        active: true,
+        scheme: next,
+        statusBarStyle: transitionalStatusBarStyle,
+        overlay1,
+        overlay2,
+      });
+
+      // Wait for React + Skia to commit the new state before we kick the
+      // animation off. On the very first toggle the Canvas hasn't yet
+      // mounted the Circle (state.overlay2 just became truthy), and if we
+      // started `withTiming` immediately the first frames would draw
+      // without the Circle visible — the animation would appear to skip.
+      await wait(PRE_SNAPSHOT_FRAME_WAIT_MS);
 
       // 6. Animate. When the circle covers the screen, we're done.
+      transition.value = 0;
       transition.value = withTiming(1, { duration: TRANSITION_DURATION });
+      // Let the reveal mostly play out before flipping the status bar so
+      // the text colour swaps right as the new theme is fully on screen
+      // (not in the middle of the circle expansion).
       await wait(TRANSITION_DURATION + 30);
-      dispatch({ active: false, scheme: next, overlay1: null, overlay2: null });
+      dispatch({
+        active: false,
+        scheme: next,
+        statusBarStyle: statusStyleFor(next),
+        overlay1: null,
+        overlay2: null,
+      });
     },
     [active, scheme, dispatch, ref, transition, circle],
   );

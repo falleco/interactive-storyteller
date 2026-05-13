@@ -241,7 +241,9 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = wondertalesroot/wondertalesroot.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D479U7HWPM;
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
@@ -259,14 +261,13 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.anonymous.wondertalesroot";
-				PRODUCT_NAME = "wondertalesroot";
+				PRODUCT_BUNDLE_IDENTIFIER = com.wondertalesai.app;
+				PRODUCT_NAME = wondertalesroot;
 				SWIFT_OBJC_BRIDGING_HEADER = "wondertalesroot/wondertalesroot-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
 				VERSIONING_SYSTEM = "apple-generic";
-				TARGETED_DEVICE_FAMILY = "1";
-				CODE_SIGN_ENTITLEMENTS = wondertalesroot/wondertalesroot.entitlements;
 			};
 			name = Debug;
 		};
@@ -275,7 +276,9 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = wondertalesroot/wondertalesroot.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D479U7HWPM;
 				INFOPLIST_FILE = wondertalesroot/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -288,13 +291,12 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.anonymous.wondertalesroot";
-				PRODUCT_NAME = "wondertalesroot";
+				PRODUCT_BUNDLE_IDENTIFIER = com.wondertalesai.app;
+				PRODUCT_NAME = wondertalesroot;
 				SWIFT_OBJC_BRIDGING_HEADER = "wondertalesroot/wondertalesroot-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
 				VERSIONING_SYSTEM = "apple-generic";
-				TARGETED_DEVICE_FAMILY = "1";
-				CODE_SIGN_ENTITLEMENTS = wondertalesroot/wondertalesroot.entitlements;
 			};
 			name = Release;
 		};
