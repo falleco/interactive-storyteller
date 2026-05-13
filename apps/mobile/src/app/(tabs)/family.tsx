@@ -87,14 +87,14 @@ export default function FamilyTab() {
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor }}>
       <View className="px-5 pt-2 pb-1">
-        <ThemedText className="text-2xl font-black text-black">
+        <ThemedText className="text-2xl font-black text-black dark:text-white">
           👪 Family
         </ThemedText>
       </View>
 
       {!user ? (
         <View className="flex-1 items-center justify-center px-6">
-          <ThemedText className="text-base text-gray-500 text-center">
+          <ThemedText className="text-base text-gray-500 dark:text-zinc-400 text-center">
             Sign in to manage your family.
           </ThemedText>
         </View>
@@ -121,7 +121,7 @@ export default function FamilyTab() {
           ListEmptyComponent={
             !isLoading ? (
               <View className="items-center mt-12 px-6">
-                <ThemedText className="text-base text-gray-500 text-center">
+                <ThemedText className="text-base text-gray-500 dark:text-zinc-400 text-center">
                   {childrenError
                     ? `Couldn't load: ${childrenError.message}`
                     : 'No family members yet.'}
@@ -182,7 +182,7 @@ function ParentRow({
   return (
     <Pressable
       onPress={onPress}
-      className="flex-row items-center bg-purple-50 border border-purple-200 rounded-2xl p-3"
+      className="flex-row items-center bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-2xl p-3"
     >
       {avatar ? (
         <Image
@@ -190,24 +190,24 @@ function ParentRow({
           style={{ width: 56, height: 56, borderRadius: 28 }}
         />
       ) : (
-        <View className="w-14 h-14 rounded-full bg-purple-300 items-center justify-center">
-          <ThemedText className="text-2xl font-black text-purple-900">
+        <View className="w-14 h-14 rounded-full bg-purple-300 dark:bg-purple-700 items-center justify-center">
+          <ThemedText className="text-2xl font-black text-purple-900 dark:text-purple-200">
             {(parent.name || '?').charAt(0).toUpperCase()}
           </ThemedText>
         </View>
       )}
       <View className="flex-1 ml-3">
         <View className="flex-row items-center">
-          <ThemedText className="text-base font-bold text-black mr-2">
+          <ThemedText className="text-base font-bold text-black dark:text-white mr-2">
             {parent.name || 'You'}
           </ThemedText>
           <View className="px-2 py-0.5 rounded-full bg-purple-200">
-            <ThemedText className="text-[10px] font-semibold text-purple-900">
+            <ThemedText className="text-[10px] font-semibold text-purple-900 dark:text-purple-200">
               ME
             </ThemedText>
           </View>
         </View>
-        <ThemedText className="text-xs text-gray-600 mt-0.5">
+        <ThemedText className="text-xs text-gray-600 dark:text-zinc-400 mt-0.5">
           {subtitle}
         </ThemedText>
       </View>
@@ -228,7 +228,7 @@ function ChildRow({
     <Pressable
       onPress={onPress}
       onLongPress={onLongPress}
-      className="flex-row items-center bg-gray-100 rounded-2xl p-3"
+      className="flex-row items-center bg-gray-100 dark:bg-zinc-800 rounded-2xl p-3"
     >
       {child.imageUrl ? (
         <Image
@@ -236,17 +236,17 @@ function ChildRow({
           style={{ width: 56, height: 56, borderRadius: 28 }}
         />
       ) : (
-        <View className="w-14 h-14 rounded-full bg-purple-200 items-center justify-center">
-          <ThemedText className="text-2xl font-black text-purple-900">
+        <View className="w-14 h-14 rounded-full bg-purple-200 dark:bg-purple-800 items-center justify-center">
+          <ThemedText className="text-2xl font-black text-purple-900 dark:text-purple-200">
             {child.name.charAt(0).toUpperCase()}
           </ThemedText>
         </View>
       )}
       <View className="flex-1 ml-3">
-        <ThemedText className="text-base font-bold text-black">
+        <ThemedText className="text-base font-bold text-black dark:text-white">
           {child.name}
         </ThemedText>
-        <ThemedText className="text-xs text-gray-600">
+        <ThemedText className="text-xs text-gray-600 dark:text-zinc-400">
           {child.age} years old
           {child.gender ? ` · ${child.gender}` : ''}
         </ThemedText>

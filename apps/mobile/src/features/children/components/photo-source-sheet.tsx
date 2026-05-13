@@ -140,12 +140,12 @@ export function PhotoSourceSheet({
       <Pressable onPress={onClose} className="flex-1 bg-black/40 justify-end">
         <Pressable
           onPress={() => undefined}
-          className="bg-white rounded-t-3xl pb-8"
+          className="bg-white dark:bg-zinc-900 rounded-t-3xl pb-8"
         >
           <View className="items-center pt-3 pb-2">
-            <View className="w-10 h-1.5 rounded-full bg-gray-300" />
+            <View className="w-10 h-1.5 rounded-full bg-gray-300 dark:bg-zinc-600" />
           </View>
-          <ThemedText className="text-base font-bold text-black text-center mt-2 mb-3">
+          <ThemedText className="text-base font-bold text-black dark:text-white text-center mt-2 mb-3">
             Add photo
           </ThemedText>
 
@@ -157,14 +157,14 @@ export function PhotoSourceSheet({
 
           {permission === 'denied' && (
             <View className="px-6 pb-3">
-              <ThemedText className="text-sm text-gray-600 text-center mb-2">
+              <ThemedText className="text-sm text-gray-600 dark:text-zinc-400 text-center mb-2">
                 Photo library access is required to show recent photos.
               </ThemedText>
               <Pressable
                 onPress={() => Linking.openSettings()}
-                className="self-center px-3 py-1.5 rounded-full bg-gray-100"
+                className="self-center px-3 py-1.5 rounded-full bg-gray-100 dark:bg-zinc-800"
               >
-                <ThemedText className="text-xs font-semibold text-black">
+                <ThemedText className="text-xs font-semibold text-black dark:text-white">
                   Open settings
                 </ThemedText>
               </Pressable>
@@ -183,7 +183,7 @@ export function PhotoSourceSheet({
                   renderItem={({ item }) => (
                     <Pressable
                       onPress={() => handlePickRecent(item)}
-                      className="overflow-hidden rounded-xl bg-gray-100"
+                      className="overflow-hidden rounded-xl bg-gray-100 dark:bg-zinc-800"
                       style={{ width: THUMB_SIZE, height: THUMB_SIZE }}
                     >
                       <Image
@@ -195,7 +195,7 @@ export function PhotoSourceSheet({
                   )}
                 />
               ) : (
-                <ThemedText className="text-sm text-gray-500 text-center py-6">
+                <ThemedText className="text-sm text-gray-500 dark:text-zinc-400 text-center py-6">
                   No recent photos found.
                 </ThemedText>
               )}
@@ -211,9 +211,9 @@ export function PhotoSourceSheet({
             />
             <Pressable
               onPress={onClose}
-              className="py-3 items-center rounded-2xl bg-gray-100 mt-1"
+              className="py-3 items-center rounded-2xl bg-gray-100 dark:bg-zinc-800 mt-1"
             >
-              <ThemedText className="text-sm font-semibold text-black">
+              <ThemedText className="text-sm font-semibold text-black dark:text-white">
                 Cancel
               </ThemedText>
             </Pressable>
@@ -237,12 +237,12 @@ function ActionRow({
     <Pressable
       onPress={onPress}
       className={cn(
-        'flex-row items-center px-4 py-3 rounded-2xl bg-white border border-gray-200',
-        'active:bg-gray-50',
+        'flex-row items-center px-4 py-3 rounded-2xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700',
+        'active:bg-gray-50 dark:active:bg-zinc-800',
       )}
     >
       <ThemedText className="text-xl mr-3">{icon}</ThemedText>
-      <ThemedText className="text-base font-semibold text-black">
+      <ThemedText className="text-base font-semibold text-black dark:text-white">
         {label}
       </ThemedText>
     </Pressable>

@@ -68,7 +68,7 @@ export default function StoryTemplatesListScreen() {
       <SafeAreaView className="flex-1" style={{ backgroundColor }}>
         <ModalHeader title="📝 Templates" onClose={handleClose} />
         <View className="flex-1 items-center justify-center px-6">
-          <ThemedText className="text-base text-gray-500 text-center">
+          <ThemedText className="text-base text-gray-500 dark:text-zinc-400 text-center">
             Sign in to manage templates.
           </ThemedText>
         </View>
@@ -90,7 +90,7 @@ export default function StoryTemplatesListScreen() {
         ListEmptyComponent={
           !isLoading ? (
             <View className="items-center mt-12 px-6">
-              <ThemedText className="text-base text-gray-500 text-center">
+              <ThemedText className="text-base text-gray-500 dark:text-zinc-400 text-center">
                 {error
                   ? `Couldn't load templates: ${error.message}`
                   : 'No templates yet. Tap "+ New template" to add one.'}
@@ -134,24 +134,28 @@ function TemplateRow({
       className={cn(
         'p-3 rounded-2xl border',
         template.isOwned
-          ? 'bg-white border-gray-200'
-          : 'bg-gray-50 border-gray-200',
+          ? 'bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-700'
+          : 'bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700',
       )}
     >
       <View className="flex-row items-center gap-2">
-        <ThemedText className="text-sm font-bold text-black flex-1">
+        <ThemedText className="text-sm font-bold text-black dark:text-white flex-1">
           {template.title}
         </ThemedText>
         <View
           className={cn(
             'px-2 py-0.5 rounded-full',
-            template.isOwned ? 'bg-gray-100' : 'bg-purple-100',
+            template.isOwned
+              ? 'bg-gray-100 dark:bg-zinc-700'
+              : 'bg-purple-100 dark:bg-purple-900/50',
           )}
         >
           <ThemedText
             className={cn(
               'text-[10px] font-semibold',
-              template.isOwned ? 'text-gray-700' : 'text-purple-900',
+              template.isOwned
+                ? 'text-gray-700 dark:text-zinc-300'
+                : 'text-purple-900 dark:text-purple-200',
             )}
           >
             {template.isOwned ? 'MINE' : 'PUBLIC'}
@@ -159,12 +163,15 @@ function TemplateRow({
         </View>
       </View>
       {template.description ? (
-        <ThemedText numberOfLines={2} className="text-xs text-gray-600 mt-1">
+        <ThemedText
+          numberOfLines={2}
+          className="text-xs text-gray-600 dark:text-zinc-400 mt-1"
+        >
           {template.description}
         </ThemedText>
       ) : null}
       {template.language ? (
-        <ThemedText className="text-[10px] uppercase tracking-wider text-gray-400 mt-1">
+        <ThemedText className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-zinc-500 mt-1">
           {template.language}
         </ThemedText>
       ) : null}

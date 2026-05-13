@@ -53,7 +53,9 @@ export default function BookDetailScreen() {
 
       {!book && isLoading && (
         <View className="flex-1 items-center justify-center">
-          <ThemedText className="text-base text-gray-500">Loading…</ThemedText>
+          <ThemedText className="text-base text-gray-500 dark:text-zinc-400">
+            Loading…
+          </ThemedText>
         </View>
       )}
 
@@ -93,13 +95,13 @@ function GeneratingView({ book }: { book: BookDetail }) {
             contentFit="cover"
           />
         ) : (
-          <View className="w-full aspect-square bg-gray-200 rounded-2xl items-center justify-center">
-            <ThemedText className="text-base text-gray-500">
+          <View className="w-full aspect-square bg-gray-200 dark:bg-zinc-800 rounded-2xl items-center justify-center">
+            <ThemedText className="text-base text-gray-500 dark:text-zinc-400">
               {book.status === 'generating' ? 'Drawing the cover…' : 'No cover'}
             </ThemedText>
           </View>
         )}
-        <ThemedText className="text-2xl font-black text-black text-center mt-4">
+        <ThemedText className="text-2xl font-black text-black dark:text-white text-center mt-4">
           {book.title}
         </ThemedText>
         <StatusBadge status={book.status} />
@@ -108,7 +110,7 @@ function GeneratingView({ book }: { book: BookDetail }) {
       {book.pages.map((page) => (
         <View
           key={page.id}
-          className="mb-6 bg-white rounded-2xl border border-gray-200 p-4"
+          className="mb-6 bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 p-4"
         >
           {page.imageUrl ? (
             <Image
@@ -122,23 +124,23 @@ function GeneratingView({ book }: { book: BookDetail }) {
               contentFit="cover"
             />
           ) : (
-            <View className="w-full aspect-square bg-gray-100 rounded-xl items-center justify-center mb-3">
-              <ThemedText className="text-sm text-gray-400">
+            <View className="w-full aspect-square bg-gray-100 dark:bg-zinc-800 rounded-xl items-center justify-center mb-3">
+              <ThemedText className="text-sm text-gray-400 dark:text-zinc-500">
                 Image coming…
               </ThemedText>
             </View>
           )}
-          <ThemedText className="text-xs uppercase tracking-wider text-gray-500 mb-1">
+          <ThemedText className="text-xs uppercase tracking-wider text-gray-500 dark:text-zinc-400 mb-1">
             Page {page.pageNumber}
           </ThemedText>
-          <ThemedText className="text-lg font-bold text-black mb-2">
+          <ThemedText className="text-lg font-bold text-black dark:text-white mb-2">
             {page.title}
           </ThemedText>
-          <ThemedText className="text-base text-black leading-6">
+          <ThemedText className="text-base text-black dark:text-white leading-6">
             {page.content}
           </ThemedText>
           {!page.audioUrl && book.status === 'generating' && (
-            <ThemedText className="text-xs text-gray-400 mt-3">
+            <ThemedText className="text-xs text-gray-400 dark:text-zinc-500 mt-3">
               Narration loading…
             </ThemedText>
           )}
@@ -153,7 +155,7 @@ function StatusBadge({ status }: { status: string }) {
     generating: 'bg-amber-100 text-amber-900',
     ready: 'bg-emerald-100 text-emerald-900',
     failed: 'bg-red-100 text-red-900',
-    draft: 'bg-gray-100 text-gray-700',
+    draft: 'bg-gray-100 dark:bg-zinc-800 text-gray-700',
   };
   const colors = palette[status] ?? palette.draft;
   const [bg, text] = colors.split(' ');

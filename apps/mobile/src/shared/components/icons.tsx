@@ -1,33 +1,23 @@
-import { Image } from 'expo-image';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import type { TabIconProps } from './core/tab-bar-button';
 
-const ICON_SIZE = { width: 56, height: 56 };
-
-type IconProps = { color: string };
-
+/**
+ * Map of route name → tab icon component. Each component receives `color`
+ * and `size`, matching the `TabIconProps` contract expected by the custom
+ * TabBar. Adding a new tab? Register its icon here.
+ *
+ * MaterialCommunityIcons covers the iconography on both iOS and Android
+ * with consistent glyphs, so the bar looks identical across platforms.
+ */
 export const icons = {
-  index: (_props: IconProps) => (
-    <Image
-      contentFit="cover"
-      transition={1000}
-      source={require('@/assets/images/hud/book.png')}
-      style={ICON_SIZE}
+  index: ({ color, size = 26 }: TabIconProps) => (
+    <MaterialCommunityIcons
+      name="book-open-variant"
+      color={color}
+      size={size}
     />
   ),
-  // Placeholder art — swap when proper "family" tab icon lands.
-  family: (_props: IconProps) => (
-    <Image
-      contentFit="cover"
-      transition={1000}
-      source={require('@/assets/images/hud/bag_512.png')}
-      style={ICON_SIZE}
-    />
-  ),
-  settings: (_props: IconProps) => (
-    <Image
-      contentFit="cover"
-      transition={1000}
-      source={require('@/assets/images/hud/settings.png')}
-      style={ICON_SIZE}
-    />
+  family: ({ color, size = 26 }: TabIconProps) => (
+    <MaterialCommunityIcons name="account-group" color={color} size={size} />
   ),
 };

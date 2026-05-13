@@ -16,6 +16,7 @@ import '@/global.css';
 import { DevMenuFab } from '~/shared/dev/dev-menu-fab';
 import { AuthProvider } from '~/shared/hooks/use-auth';
 import { useColorScheme } from '~/shared/hooks/use-color-scheme';
+import { loadStoredThemeMode } from '~/shared/hooks/use-theme-mode';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -33,6 +34,12 @@ export default function RootLayout() {
     'Manaspace-Medium': require('@/assets/fonts/manaspace.ttf'),
   });
   const colorScheme = useColorScheme();
+
+  // Restore the user's saved theme preference before the first paint so the
+  // app boots in their chosen mode instead of flashing the system default.
+  useEffect(() => {
+    loadStoredThemeMode();
+  }, []);
 
   useEffect(() => {
     if (loaded || error) {

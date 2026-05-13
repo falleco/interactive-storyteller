@@ -48,7 +48,7 @@ export default function AccountScreen() {
 
       <ScrollView className="flex-1 p-5" contentContainerClassName="pb-12">
         {isLoading ? (
-          <ThemedText className="text-center text-base text-gray-500 mt-12">
+          <ThemedText className="text-center text-base text-gray-500 dark:text-zinc-400 mt-12">
             Loading…
           </ThemedText>
         ) : user ? (
@@ -114,10 +114,10 @@ function SignedInView({
             </ThemedText>
           </View>
         )}
-        <ThemedText className="mt-4 text-xl font-black text-black">
+        <ThemedText className="mt-4 text-xl font-black text-black dark:text-white">
           {displayName}
         </ThemedText>
-        <ThemedText className="mt-1 text-sm text-gray-600">
+        <ThemedText className="mt-1 text-sm text-gray-600 dark:text-zinc-400">
           {user.email}
         </ThemedText>
         {!user.emailVerified && (
@@ -155,10 +155,10 @@ function SignedOutView({
   return (
     <View className="items-center">
       <View className="items-center mt-6 mb-8 px-4">
-        <ThemedText className="text-2xl font-black text-black text-center">
+        <ThemedText className="text-2xl font-black text-black dark:text-white text-center">
           Sign in
         </ThemedText>
-        <ThemedText className="mt-2 text-sm text-gray-600 text-center">
+        <ThemedText className="mt-2 text-sm text-gray-600 dark:text-zinc-400 text-center">
           Sync your progress across devices and never lose your wonder tales.
         </ThemedText>
       </View>
@@ -170,7 +170,7 @@ function SignedOutView({
           isDisabled={pendingProvider !== null}
           onPress={onGoogle}
         >
-          <ThemedText className="text-base font-semibold text-black">
+          <ThemedText className="text-base font-semibold text-black dark:text-white">
             {pendingProvider === 'google'
               ? 'Opening Google…'
               : 'Continue with Google'}
@@ -193,7 +193,7 @@ function SignedOutView({
         )}
       </View>
 
-      <ThemedText className="mt-8 text-xs text-gray-500 text-center px-6">
+      <ThemedText className="mt-8 text-xs text-gray-500 dark:text-zinc-400 text-center px-6">
         By continuing you agree to our Terms of Service and Privacy Policy.
       </ThemedText>
     </View>

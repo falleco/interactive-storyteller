@@ -101,8 +101,8 @@ export default function TemplateEditorScreen() {
         contentContainerClassName="pb-12 gap-4"
       >
         {isReadOnly && (
-          <View className="bg-purple-50 border border-purple-200 rounded-xl px-3 py-2">
-            <ThemedText className="text-xs text-purple-900">
+          <View className="bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-xl px-3 py-2">
+            <ThemedText className="text-xs text-purple-900 dark:text-purple-200">
               This is a public template. It can be viewed but not edited.
             </ThemedText>
           </View>
@@ -115,7 +115,7 @@ export default function TemplateEditorScreen() {
             editable={!isReadOnly}
             placeholder="e.g. Underwater Adventure"
             placeholderTextColor="#9ca3af"
-            className="bg-gray-100 rounded-xl px-4 py-3 text-base text-black"
+            className="bg-gray-100 dark:bg-zinc-800 rounded-xl px-4 py-3 text-base text-black dark:text-white"
             maxLength={80}
           />
         </Field>
@@ -130,7 +130,7 @@ export default function TemplateEditorScreen() {
             editable={!isReadOnly}
             placeholder="e.g. A journey beneath the waves."
             placeholderTextColor="#9ca3af"
-            className="bg-gray-100 rounded-xl px-4 py-3 text-base text-black"
+            className="bg-gray-100 dark:bg-zinc-800 rounded-xl px-4 py-3 text-base text-black dark:text-white"
             maxLength={200}
           />
         </Field>
@@ -169,7 +169,7 @@ export default function TemplateEditorScreen() {
             placeholder="Describe the world, possible characters, items, themes…"
             placeholderTextColor="#9ca3af"
             multiline
-            className="bg-gray-100 rounded-xl px-4 py-3 text-base text-black"
+            className="bg-gray-100 dark:bg-zinc-800 rounded-xl px-4 py-3 text-base text-black dark:text-white"
             style={{ minHeight: 200, textAlignVertical: 'top' }}
             maxLength={4000}
           />
@@ -209,11 +209,13 @@ function Field({
 }) {
   return (
     <View>
-      <ThemedText className="text-xs uppercase tracking-wider text-gray-500 mb-1">
+      <ThemedText className="text-xs uppercase tracking-wider text-gray-500 dark:text-zinc-400 mb-1">
         {label}
       </ThemedText>
       {hint && (
-        <ThemedText className="text-xs text-gray-400 mb-2">{hint}</ThemedText>
+        <ThemedText className="text-xs text-gray-400 dark:text-zinc-500 mb-2">
+          {hint}
+        </ThemedText>
       )}
       {children}
     </View>
@@ -237,14 +239,16 @@ function Pill({
       disabled={disabled}
       className={cn(
         'px-4 py-2 rounded-full border',
-        selected ? 'bg-black border-black' : 'bg-white border-gray-300',
+        selected
+          ? 'bg-black border-black'
+          : 'bg-white dark:bg-zinc-900 border-gray-300 dark:border-zinc-600',
         disabled && 'opacity-50',
       )}
     >
       <ThemedText
         className={cn(
           'text-sm font-semibold',
-          selected ? 'text-white' : 'text-black',
+          selected ? 'text-white' : 'text-black dark:text-white',
         )}
       >
         {label}

@@ -17,7 +17,7 @@ interface ModalHeaderProps {
 export function ModalHeader({ title, onClose }: ModalHeaderProps) {
   return (
     <View className="flex-row justify-between items-center backdrop-blur-sm border-b border-white/10">
-      <ThemedText className="text-2xl font-black text-black">
+      <ThemedText className="text-2xl font-black text-black dark:text-white">
         {title}
       </ThemedText>
       <FlatButton size="lg" onPress={onClose} className="p-0 m-0">

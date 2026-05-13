@@ -169,7 +169,7 @@ export function BookPlayer({ book, onComplete, onChoose }: BookPlayerProps) {
             onPress={audio.toggle}
             className={cn(
               'w-16 h-16 rounded-full items-center justify-center',
-              audio.hasSource ? 'bg-black' : 'bg-gray-300',
+              audio.hasSource ? 'bg-black' : 'bg-gray-300 dark:bg-zinc-600',
             )}
           >
             <ThemedText className="text-white text-2xl">
@@ -204,11 +204,13 @@ function CoverSlide({
           contentFit="cover"
         />
       ) : (
-        <View className="w-full aspect-square bg-gray-200 rounded-3xl items-center justify-center">
-          <ThemedText className="text-base text-gray-500">No cover</ThemedText>
+        <View className="w-full aspect-square bg-gray-200 dark:bg-zinc-700 rounded-3xl items-center justify-center">
+          <ThemedText className="text-base text-gray-500 dark:text-zinc-400">
+            No cover
+          </ThemedText>
         </View>
       )}
-      <ThemedText className="text-3xl font-black text-black text-center mt-6">
+      <ThemedText className="text-3xl font-black text-black dark:text-white text-center mt-6">
         {title}
       </ThemedText>
     </View>
@@ -229,20 +231,20 @@ function PageSlide({ width, page }: { width: number; page: BookPagePayload }) {
           contentFit="cover"
         />
       ) : (
-        <View className="w-full aspect-square bg-gray-100 rounded-3xl items-center justify-center">
-          <ThemedText className="text-sm text-gray-400">
+        <View className="w-full aspect-square bg-gray-100 dark:bg-zinc-800 rounded-3xl items-center justify-center">
+          <ThemedText className="text-sm text-gray-400 dark:text-zinc-500">
             Image coming…
           </ThemedText>
         </View>
       )}
       <View className="mt-4">
-        <ThemedText className="text-xs uppercase tracking-wider text-gray-500 mb-1">
+        <ThemedText className="text-xs uppercase tracking-wider text-gray-500 dark:text-zinc-400 mb-1">
           Page {page.pageNumber}
         </ThemedText>
-        <ThemedText className="text-xl font-black text-black mb-2">
+        <ThemedText className="text-xl font-black text-black dark:text-white mb-2">
           {page.title}
         </ThemedText>
-        <ThemedText className="text-base text-black leading-7">
+        <ThemedText className="text-base text-black dark:text-white leading-7">
           {page.content}
         </ThemedText>
       </View>
@@ -262,10 +264,10 @@ function EndSlide({
   return (
     <View style={{ width }} className="px-6 pt-12 items-center">
       <ThemedText className="text-5xl mb-4">🎉</ThemedText>
-      <ThemedText className="text-3xl font-black text-black text-center">
+      <ThemedText className="text-3xl font-black text-black dark:text-white text-center">
         The end
       </ThemedText>
-      <ThemedText className="text-base text-gray-600 text-center mt-2 mb-8">
+      <ThemedText className="text-base text-gray-600 dark:text-zinc-400 text-center mt-2 mb-8">
         Hope you enjoyed the story.
       </ThemedText>
       <FlatButton
@@ -295,7 +297,7 @@ function ChoicesSlide({
 }) {
   return (
     <View style={{ width }} className="px-6 pt-6">
-      <ThemedText className="text-2xl font-black text-black text-center mb-4">
+      <ThemedText className="text-2xl font-black text-black dark:text-white text-center mb-4">
         What happens next?
       </ThemedText>
       <View className="gap-3">
@@ -320,18 +322,18 @@ function ChoicesSlide({
                   contentFit="cover"
                 />
               ) : (
-                <View className="w-full aspect-[16/9] bg-gray-100 items-center justify-center">
-                  <ThemedText className="text-xs text-gray-400">
+                <View className="w-full aspect-[16/9] bg-gray-100 dark:bg-zinc-800 items-center justify-center">
+                  <ThemedText className="text-xs text-gray-400 dark:text-zinc-500">
                     Drawing…
                   </ThemedText>
                 </View>
               )}
               <View className="px-4 py-3">
-                <ThemedText className="text-base font-semibold text-black">
+                <ThemedText className="text-base font-semibold text-black dark:text-white">
                   {choice.label}
                 </ThemedText>
                 {isPending && (
-                  <ThemedText className="text-xs text-gray-500 mt-1">
+                  <ThemedText className="text-xs text-gray-500 dark:text-zinc-400 mt-1">
                     Writing the next page…
                   </ThemedText>
                 )}
@@ -348,10 +350,10 @@ function LoadingNextSlide({ width }: { width: number }) {
   return (
     <View style={{ width }} className="px-6 pt-24 items-center">
       <ThemedText className="text-5xl mb-4">✨</ThemedText>
-      <ThemedText className="text-2xl font-black text-black text-center">
+      <ThemedText className="text-2xl font-black text-black dark:text-white text-center">
         Writing the next page…
       </ThemedText>
-      <ThemedText className="text-sm text-gray-500 text-center mt-2">
+      <ThemedText className="text-sm text-gray-500 dark:text-zinc-400 text-center mt-2">
         Hold tight, we're imagining what comes next.
       </ThemedText>
     </View>
@@ -367,7 +369,9 @@ function PageIndicator({ current, total }: { current: number; total: number }) {
           key={`dot-${i}`}
           className={cn(
             'h-1.5 rounded-full',
-            i === current ? 'w-6 bg-black' : 'w-1.5 bg-gray-300',
+            i === current
+              ? 'w-6 bg-black'
+              : 'w-1.5 bg-gray-300 dark:bg-zinc-600',
           )}
         />
       ))}

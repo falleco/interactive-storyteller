@@ -151,7 +151,7 @@ export default function ChildEditScreen() {
             initial={(name || existing?.name || '?').charAt(0).toUpperCase()}
             onPress={handleOpenPhotoSheet}
           />
-          <ThemedText className="text-xs text-gray-500 mt-2">
+          <ThemedText className="text-xs text-gray-500 dark:text-zinc-400 mt-2">
             Tap to {avatarUri ? 'change' : 'add'} photo
           </ThemedText>
         </View>
@@ -172,8 +172,10 @@ export default function ChildEditScreen() {
             autoCapitalize="words"
             maxLength={80}
             className={cn(
-              'bg-white border rounded-xl px-4 py-3 text-base text-black',
-              nameInvalid ? 'border-red-500' : 'border-gray-300',
+              'bg-white dark:bg-zinc-900 border rounded-xl px-4 py-3 text-base text-black dark:text-white',
+              nameInvalid
+                ? 'border-red-500'
+                : 'border-gray-300 dark:border-zinc-700',
             )}
           />
         </Field>
@@ -194,7 +196,7 @@ export default function ChildEditScreen() {
               maxLength={2}
               placeholder={String(AGE_DEFAULT)}
               placeholderTextColor="#9ca3af"
-              className="flex-1 bg-white border border-gray-300 rounded-xl px-4 py-3 text-xl font-bold text-black"
+              className="flex-1 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl px-4 py-3 text-xl font-bold text-black dark:text-white"
             />
             <StepperButton
               symbol="+"
@@ -254,7 +256,7 @@ function Field({
   return (
     <View>
       <View className="flex-row items-baseline mb-2">
-        <ThemedText className="text-xs uppercase tracking-wider text-gray-500">
+        <ThemedText className="text-xs uppercase tracking-wider text-gray-500 dark:text-zinc-400">
           {label}
         </ThemedText>
         {required && (
@@ -265,7 +267,9 @@ function Field({
       {error ? (
         <ThemedText className="text-xs text-red-500 mt-1">{error}</ThemedText>
       ) : hint ? (
-        <ThemedText className="text-xs text-gray-400 mt-1">{hint}</ThemedText>
+        <ThemedText className="text-xs text-gray-400 dark:text-zinc-500 mt-1">
+          {hint}
+        </ThemedText>
       ) : null}
     </View>
   );
@@ -284,7 +288,7 @@ function AvatarPicker({
     <Pressable
       onPress={onPress}
       accessibilityLabel="Choose profile picture"
-      className="w-28 h-28 rounded-full overflow-hidden border-4 border-white bg-purple-200 items-center justify-center"
+      className="w-28 h-28 rounded-full overflow-hidden border-4 border-white bg-purple-200 dark:bg-purple-800 items-center justify-center"
       style={{
         // soft shadow so the avatar feels lifted off the sheet
         shadowColor: '#000',
@@ -301,7 +305,7 @@ function AvatarPicker({
           contentFit="cover"
         />
       ) : (
-        <ThemedText className="text-4xl font-black text-purple-900">
+        <ThemedText className="text-4xl font-black text-purple-900 dark:text-purple-200">
           {initial}
         </ThemedText>
       )}
@@ -328,14 +332,14 @@ function StepperButton({
       className={cn(
         'w-12 h-12 rounded-xl items-center justify-center border',
         disabled
-          ? 'border-gray-200 bg-gray-50'
-          : 'border-gray-300 bg-white active:bg-gray-100',
+          ? 'border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800'
+          : 'border-gray-300 dark:border-zinc-700 bg-white active:bg-gray-100 dark:bg-zinc-800',
       )}
     >
       <ThemedText
         className={cn(
           'text-2xl font-bold',
-          disabled ? 'text-gray-300' : 'text-black',
+          disabled ? 'text-gray-300' : 'text-black dark:text-white',
         )}
       >
         {symbol}
@@ -359,17 +363,21 @@ function GenderSelect({
     <>
       <Pressable
         onPress={() => setOpen(true)}
-        className="flex-row items-center bg-white border border-gray-300 rounded-xl px-4 py-3"
+        className="flex-row items-center bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-xl px-4 py-3"
       >
         <ThemedText
           className={cn(
             'flex-1 text-base',
-            value ? 'text-black' : 'text-gray-400',
+            value
+              ? 'text-black dark:text-white'
+              : 'text-gray-400 dark:text-zinc-500',
           )}
         >
           {label}
         </ThemedText>
-        <ThemedText className="text-gray-400 text-sm">▾</ThemedText>
+        <ThemedText className="text-gray-400 dark:text-zinc-500 text-sm">
+          ▾
+        </ThemedText>
       </Pressable>
 
       <Modal
@@ -389,7 +397,7 @@ function GenderSelect({
             <View className="items-center pt-3 pb-2">
               <View className="w-10 h-1.5 rounded-full bg-gray-300" />
             </View>
-            <ThemedText className="text-base font-bold text-black text-center mt-2 mb-3">
+            <ThemedText className="text-base font-bold text-black dark:text-white text-center mt-2 mb-3">
               Gender
             </ThemedText>
             {GENDER_OPTIONS.map((option) => {
@@ -403,21 +411,21 @@ function GenderSelect({
                   }}
                   className={cn(
                     'px-6 py-4 flex-row items-center',
-                    isSelected && 'bg-purple-50',
+                    isSelected && 'bg-purple-50 dark:bg-purple-950/40',
                   )}
                 >
                   <ThemedText
                     className={cn(
                       'flex-1 text-base',
                       isSelected
-                        ? 'text-purple-700 font-semibold'
-                        : 'text-black',
+                        ? 'text-purple-700 dark:text-purple-300 font-semibold'
+                        : 'text-black dark:text-white',
                     )}
                   >
                     {option.label}
                   </ThemedText>
                   {isSelected && (
-                    <ThemedText className="text-purple-700 font-bold">
+                    <ThemedText className="text-purple-700 dark:text-purple-300 font-bold">
                       ✓
                     </ThemedText>
                   )}

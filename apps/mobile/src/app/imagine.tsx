@@ -117,7 +117,7 @@ export default function ImagineScreen() {
       <SafeAreaView className="flex-1" style={{ backgroundColor }}>
         <ModalHeader title="✨ New story" onClose={handleClose} />
         <View className="flex-1 items-center justify-center px-6">
-          <ThemedText className="text-base text-gray-500 text-center">
+          <ThemedText className="text-base text-gray-500 dark:text-zinc-400 text-center">
             Sign in to start creating stories.
           </ThemedText>
         </View>
@@ -172,9 +172,11 @@ export default function ImagineScreen() {
           hint="Start from a ready-made idea, or skip to write your own."
         >
           {isLoadingTemplates ? (
-            <ThemedText className="text-sm text-gray-500">Loading…</ThemedText>
+            <ThemedText className="text-sm text-gray-500 dark:text-zinc-400">
+              Loading…
+            </ThemedText>
           ) : visibleTemplates.length === 0 ? (
-            <ThemedText className="text-sm text-gray-500">
+            <ThemedText className="text-sm text-gray-500 dark:text-zinc-400">
               No templates yet for this language.
             </ThemedText>
           ) : (
@@ -214,9 +216,11 @@ export default function ImagineScreen() {
 
         <Section title="Storyteller">
           {isLoadingStorytellers ? (
-            <ThemedText className="text-sm text-gray-500">Loading…</ThemedText>
+            <ThemedText className="text-sm text-gray-500 dark:text-zinc-400">
+              Loading…
+            </ThemedText>
           ) : storytellers.length === 0 ? (
-            <ThemedText className="text-sm text-gray-500">
+            <ThemedText className="text-sm text-gray-500 dark:text-zinc-400">
               No storytellers available for this language.
             </ThemedText>
           ) : (
@@ -267,7 +271,7 @@ export default function ImagineScreen() {
               placeholderTextColor="#9ca3af"
               multiline
               numberOfLines={3}
-              className="bg-gray-100 rounded-xl px-4 py-3 text-base text-black"
+              className="bg-gray-100 dark:bg-zinc-800 rounded-xl px-4 py-3 text-base text-black dark:text-white"
               style={{ minHeight: 80, textAlignVertical: 'top' }}
               maxLength={4000}
             />
@@ -300,11 +304,13 @@ function Section({
 }) {
   return (
     <View>
-      <ThemedText className="text-xs uppercase tracking-wider text-gray-500 mb-1">
+      <ThemedText className="text-xs uppercase tracking-wider text-gray-500 dark:text-zinc-400 mb-1">
         {title}
       </ThemedText>
       {hint && (
-        <ThemedText className="text-xs text-gray-400 mb-2">{hint}</ThemedText>
+        <ThemedText className="text-xs text-gray-400 dark:text-zinc-500 mb-2">
+          {hint}
+        </ThemedText>
       )}
       {children}
     </View>
@@ -325,13 +331,15 @@ function Pill({
       onPress={onPress}
       className={cn(
         'px-4 py-2 rounded-full border',
-        selected ? 'bg-black border-black' : 'bg-white border-gray-300',
+        selected
+          ? 'bg-black border-black'
+          : 'bg-white dark:bg-zinc-900 border-gray-300 dark:border-zinc-600',
       )}
     >
       <ThemedText
         className={cn(
           'text-sm font-semibold',
-          selected ? 'text-white' : 'text-black',
+          selected ? 'text-white' : 'text-black dark:text-white',
         )}
       >
         {label}
@@ -399,22 +407,25 @@ function OwnedTemplateCard({
       className={cn(
         'p-3 rounded-2xl border',
         selected
-          ? 'bg-purple-50 border-purple-600'
-          : 'bg-white border-gray-200',
+          ? 'bg-purple-50 dark:bg-purple-950/40 border-purple-600'
+          : 'bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-700',
       )}
     >
       <View className="flex-row items-center gap-2">
-        <ThemedText className="text-sm font-bold text-black flex-1">
+        <ThemedText className="text-sm font-bold text-black dark:text-white flex-1">
           {template.title}
         </ThemedText>
         <View className="px-2 py-0.5 rounded-full bg-gray-100">
-          <ThemedText className="text-[10px] font-semibold text-gray-700">
+          <ThemedText className="text-[10px] font-semibold text-gray-700 dark:text-zinc-300">
             MINE
           </ThemedText>
         </View>
       </View>
       {template.description ? (
-        <ThemedText numberOfLines={2} className="text-xs text-gray-600 mt-1">
+        <ThemedText
+          numberOfLines={2}
+          className="text-xs text-gray-600 dark:text-zinc-400 mt-1"
+        >
           {template.description}
         </ThemedText>
       ) : null}
@@ -439,11 +450,11 @@ function StorytellerCard({
       className={cn(
         'w-24 items-center p-2 rounded-2xl border',
         selected
-          ? 'bg-purple-100 border-purple-600'
-          : 'bg-white border-gray-200',
+          ? 'bg-purple-100 dark:bg-purple-900/40 border-purple-600'
+          : 'bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-700',
       )}
     >
-      <View className="w-16 h-16 rounded-full bg-gray-100 items-center justify-center mb-1 overflow-hidden">
+      <View className="w-16 h-16 rounded-full bg-gray-100 dark:bg-zinc-800 items-center justify-center mb-1 overflow-hidden">
         {imageUrl ? (
           <Image
             source={{ uri: imageUrl }}
@@ -454,7 +465,7 @@ function StorytellerCard({
           <ThemedText className="text-2xl">🎙️</ThemedText>
         )}
       </View>
-      <ThemedText className="text-xs font-semibold text-black text-center">
+      <ThemedText className="text-xs font-semibold text-black dark:text-white text-center">
         {name}
       </ThemedText>
     </Pressable>

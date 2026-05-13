@@ -105,7 +105,7 @@ function SettingItemRow({ item, onPress }: SettingItemRowProps) {
   return (
     <Pressable
       onPress={handlePress}
-      className="flex-row items-center justify-between py-4 px-4 border-b border-gray-100"
+      className="flex-row items-center justify-between py-4 px-4 border-b border-gray-100 dark:border-zinc-800"
       style={({ pressed }) => ({
         backgroundColor: pressed ? 'rgba(0,0,0,0.05)' : 'transparent',
       })}
