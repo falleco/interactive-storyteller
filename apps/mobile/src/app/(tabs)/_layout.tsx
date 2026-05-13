@@ -18,9 +18,9 @@ export default function TabLayout() {
       tabBar={(props) => <TabBar {...props} />}
     >
       <Tabs.Screen
-        name="children"
+        name="family"
         options={{
-          title: 'Children',
+          title: 'Family',
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="person.2.fill" color={color} />
           ),

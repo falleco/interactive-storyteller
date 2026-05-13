@@ -1,4 +1,5 @@
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import { Alert, FlatList, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ModalHeader } from '~/features/settings';
@@ -16,6 +17,14 @@ export default function StoryTemplatesListScreen() {
   const backgroundColor = useThemeColor({}, 'background');
   const { user } = useAuth();
   const { templates, isLoading, error, refresh, remove } = useStoryTemplates();
+
+  // Editor screen mounts a separate useStoryTemplates instance, so its
+  // create/update doesn't reach this list's state. Refetch on focus.
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh]),
+  );
 
   const handleClose = () => router.back();
   const handleAdd = () => router.push('/settings/templates/new');

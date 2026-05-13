@@ -62,7 +62,7 @@ export default function RootLayout() {
                 }}
               />
               <Stack.Screen
-                name="children"
+                name="family"
                 options={{
                   presentation: 'formSheet',
                   // iOS-native partial sheet ("popup" feel); on Android the

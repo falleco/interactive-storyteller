@@ -63,7 +63,16 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Wonder Tales uses your photos so you can pick a profile picture for your child."
+          "photosPermission": "Wonder Tales uses your photos so you can pick a profile picture for your child.",
+          "cameraPermission": "Wonder Tales needs camera access to take a profile picture for your child."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Wonder Tales reads your recent photos to show them in the picker.",
+          "savePhotosPermission": "Wonder Tales saves story illustrations to your photo library.",
+          "isAccessMediaLocationEnabled": false
         }
       ]
     ],

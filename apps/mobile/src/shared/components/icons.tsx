@@ -13,8 +13,8 @@ export const icons = {
       style={ICON_SIZE}
     />
   ),
-  // Placeholder art — swap when proper "children" tab icon lands.
-  children: (_props: IconProps) => (
+  // Placeholder art — swap when proper "family" tab icon lands.
+  family: (_props: IconProps) => (
     <Image
       contentFit="cover"
       transition={1000}

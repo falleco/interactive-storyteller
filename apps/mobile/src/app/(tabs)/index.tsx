@@ -1,5 +1,6 @@
 import { Image } from 'expo-image';
-import { type Href, router } from 'expo-router';
+import { type Href, router, useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import { Alert, FlatList, Pressable, View } from 'react-native';
 import {
   SafeAreaView,
@@ -18,6 +19,14 @@ export default function HomeTab() {
   const { books, isLoading, error, refresh, remove } = useBooks();
 
   const insets = useSafeAreaInsets();
+
+  // Refetch on focus — the wizard modal mounts its own useBooks instance, so
+  // the create there doesn't reach this tab's state once we return.
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh]),
+  );
 
   const handleCreate = () => router.push('/imagine' as Href);
   const handleOpenBook = (id: string) => router.push(`/book/${id}` as Href);

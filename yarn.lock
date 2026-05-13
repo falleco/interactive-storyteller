@@ -6406,12 +6406,14 @@ __metadata:
     expo-audio: "npm:~1.1.1"
     expo-clipboard: "npm:~8.0.7"
     expo-constants: "npm:~18.0.13"
+    expo-file-system: "npm:~19.0.22"
     expo-font: "npm:~14.0.11"
     expo-haptics: "npm:~15.0.8"
     expo-image: "npm:~3.0.11"
     expo-image-picker: "npm:~17.0.11"
     expo-linear-gradient: "npm:~15.0.8"
     expo-linking: "npm:~8.0.12"
+    expo-media-library: "npm:~18.2.1"
     expo-network: "npm:~8.0.7"
     expo-router: "npm:~6.0.23"
     expo-screen-orientation: "npm:~9.0.9"
@@ -9177,6 +9179,16 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10c0/56894fc1b53f3e21c197b547615395a2aec75535128db231abcce6356e5c28a3eaeca130816ee77c9bb74fa8f2ac01c996b4219d6bb0641d74bc9eb6eb1fe3e1
+  languageName: node
+  linkType: hard
+
+"expo-media-library@npm:~18.2.1":
+  version: 18.2.1
+  resolution: "expo-media-library@npm:18.2.1"
+  peerDependencies:
+    expo: "*"
+    react-native: "*"
+  checksum: 10c0/f1f171aea7be77cd9226401449ad41235fd6fd0ec5325762dbf66a816864711fe0ef99ac2c3faff3c99db5bb2a3949c6944db2b4c21a57379bc372f7e6e3f52b
   languageName: node
   linkType: hard
 

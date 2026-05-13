@@ -1,3 +1,4 @@
+export { PhotoSourceSheet } from './components/photo-source-sheet';
 export type {
   ChildProfile,
   CreateChildInput,

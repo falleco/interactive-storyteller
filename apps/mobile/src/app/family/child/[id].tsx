@@ -1,5 +1,4 @@
 import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -11,7 +10,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { type UploadChildImageInput, useChildren } from '~/features/children';
+import {
+  PhotoSourceSheet,
+  type UploadChildImageInput,
+  useChildren,
+} from '~/features/children';
 import { ModalHeader } from '~/features/settings';
 import { FlatButton } from '~/shared/components/core/flat-button';
 import { ThemedText } from '~/shared/components/themed-text';
@@ -54,6 +57,7 @@ export default function ChildEditScreen() {
   );
   const [isSaving, setIsSaving] = useState(false);
   const [touchedName, setTouchedName] = useState(false);
+  const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
 
   useEffect(() => {
     if (existing) {
@@ -67,29 +71,10 @@ export default function ChildEditScreen() {
   // back to the persisted URL on the child profile.
   const avatarUri = pickedAsset?.uri ?? existing?.imageUrl ?? null;
 
-  const handlePickPhoto = async () => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert(
-        'Photo access needed',
-        'Allow photo library access in Settings to add a profile picture.',
-      );
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.85,
-    });
-    if (result.canceled) return;
-    const asset = result.assets[0];
-    if (!asset) return;
-    setPickedAsset({
-      uri: asset.uri,
-      mimeType: asset.mimeType ?? null,
-      fileName: asset.fileName ?? null,
-    });
+  const handleOpenPhotoSheet = () => setPhotoSheetOpen(true);
+  const handleClosePhotoSheet = () => setPhotoSheetOpen(false);
+  const handlePickAsset = (asset: UploadChildImageInput) => {
+    setPickedAsset(asset);
   };
 
   const handleClose = () => router.back();
@@ -164,7 +149,7 @@ export default function ChildEditScreen() {
           <AvatarPicker
             uri={avatarUri}
             initial={(name || existing?.name || '?').charAt(0).toUpperCase()}
-            onPress={handlePickPhoto}
+            onPress={handleOpenPhotoSheet}
           />
           <ThemedText className="text-xs text-gray-500 mt-2">
             Tap to {avatarUri ? 'change' : 'add'} photo
@@ -238,6 +223,12 @@ export default function ChildEditScreen() {
           </ThemedText>
         </FlatButton>
       </ScrollView>
+
+      <PhotoSourceSheet
+        visible={photoSheetOpen}
+        onClose={handleClosePhotoSheet}
+        onPick={handlePickAsset}
+      />
     </SafeAreaView>
   );
 }

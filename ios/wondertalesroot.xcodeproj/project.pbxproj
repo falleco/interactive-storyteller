@@ -8,26 +8,26 @@
 
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
-		1B37E4E85BE627F3BABF162A /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 606D288ECCCB9785D9C16300 /* ExpoModulesProvider.swift */; };
-		1D1CF8683C65AA0DD6BE6800 /* libPods-wondertalesroot.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 061C23DE439697ED12E81798 /* libPods-wondertalesroot.a */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
-		AB48AED640738241721567CC /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B3622670422CD58AB29DD2CE /* PrivacyInfo.xcprivacy */; };
+		916AEF73DA18086CB168EC23 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B9ABA61269C2677199C19EF3 /* PrivacyInfo.xcprivacy */; };
+		92B5945EEE67999FE82C5103 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABD0CE110173E12C387268B0 /* ExpoModulesProvider.swift */; };
+		9BADD645DB91CE9547A5A73B /* libPods-wondertalesroot.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D62621B521B9D9E239A524B1 /* libPods-wondertalesroot.a */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		061C23DE439697ED12E81798 /* libPods-wondertalesroot.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-wondertalesroot.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07F961A680F5B00A75B9A /* wondertalesroot.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = wondertalesroot.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = wondertalesroot/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = wondertalesroot/Info.plist; sourceTree = "<group>"; };
-		606D288ECCCB9785D9C16300 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-wondertalesroot/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
-		732AD2F2039005DC445DC8FA /* Pods-wondertalesroot.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-wondertalesroot.debug.xcconfig"; path = "Target Support Files/Pods-wondertalesroot/Pods-wondertalesroot.debug.xcconfig"; sourceTree = "<group>"; };
-		7737A1907EDC6F066DA28321 /* Pods-wondertalesroot.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-wondertalesroot.release.xcconfig"; path = "Target Support Files/Pods-wondertalesroot/Pods-wondertalesroot.release.xcconfig"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = wondertalesroot/SplashScreen.storyboard; sourceTree = "<group>"; };
-		B3622670422CD58AB29DD2CE /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = wondertalesroot/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		ABD0CE110173E12C387268B0 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-wondertalesroot/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
+		B9ABA61269C2677199C19EF3 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = wondertalesroot/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
+		D62621B521B9D9E239A524B1 /* libPods-wondertalesroot.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-wondertalesroot.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		EF0082EFB6F7EA324B312652 /* Pods-wondertalesroot.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-wondertalesroot.release.xcconfig"; path = "Target Support Files/Pods-wondertalesroot/Pods-wondertalesroot.release.xcconfig"; sourceTree = "<group>"; };
+		EF1F7D26CCEC880171F5BD6C /* Pods-wondertalesroot.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-wondertalesroot.debug.xcconfig"; path = "Target Support Files/Pods-wondertalesroot/Pods-wondertalesroot.debug.xcconfig"; sourceTree = "<group>"; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = wondertalesroot/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* wondertalesroot-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "wondertalesroot-Bridging-Header.h"; path = "wondertalesroot/wondertalesroot-Bridging-Header.h"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -37,7 +37,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1D1CF8683C65AA0DD6BE6800 /* libPods-wondertalesroot.a in Frameworks */,
+				9BADD645DB91CE9547A5A73B /* libPods-wondertalesroot.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -53,7 +53,15 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				B3622670422CD58AB29DD2CE /* PrivacyInfo.xcprivacy */,
+				B9ABA61269C2677199C19EF3 /* PrivacyInfo.xcprivacy */,
+			);
+			name = wondertalesroot;
+			sourceTree = "<group>";
+		};
+		21803F3ED95C220B0A34E12D /* wondertalesroot */ = {
+			isa = PBXGroup;
+			children = (
+				ABD0CE110173E12C387268B0 /* ExpoModulesProvider.swift */,
 			);
 			name = wondertalesroot;
 			sourceTree = "<group>";
@@ -62,33 +70,15 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				061C23DE439697ED12E81798 /* libPods-wondertalesroot.a */,
+				D62621B521B9D9E239A524B1 /* libPods-wondertalesroot.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		32BB1C6212AAC209FAD556E2 /* Pods */ = {
+		4A4A8FACFA2B34A87C757092 /* ExpoModulesProviders */ = {
 			isa = PBXGroup;
 			children = (
-				732AD2F2039005DC445DC8FA /* Pods-wondertalesroot.debug.xcconfig */,
-				7737A1907EDC6F066DA28321 /* Pods-wondertalesroot.release.xcconfig */,
-			);
-			name = Pods;
-			path = Pods;
-			sourceTree = "<group>";
-		};
-		3A10FB7DD0EB906CEA73AB4D /* wondertalesroot */ = {
-			isa = PBXGroup;
-			children = (
-				606D288ECCCB9785D9C16300 /* ExpoModulesProvider.swift */,
-			);
-			name = wondertalesroot;
-			sourceTree = "<group>";
-		};
-		7F0A0042DB0A57DED60A3E49 /* ExpoModulesProviders */ = {
-			isa = PBXGroup;
-			children = (
-				3A10FB7DD0EB906CEA73AB4D /* wondertalesroot */,
+				21803F3ED95C220B0A34E12D /* wondertalesroot */,
 			);
 			name = ExpoModulesProviders;
 			sourceTree = "<group>";
@@ -107,8 +97,8 @@
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
-				32BB1C6212AAC209FAD556E2 /* Pods */,
-				7F0A0042DB0A57DED60A3E49 /* ExpoModulesProviders */,
+				CC06FEFCD2CF196B558D950F /* Pods */,
+				4A4A8FACFA2B34A87C757092 /* ExpoModulesProviders */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -132,6 +122,16 @@
 			path = wondertalesroot/Supporting;
 			sourceTree = "<group>";
 		};
+		CC06FEFCD2CF196B558D950F /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				EF1F7D26CCEC880171F5BD6C /* Pods-wondertalesroot.debug.xcconfig */,
+				EF0082EFB6F7EA324B312652 /* Pods-wondertalesroot.release.xcconfig */,
+			);
+			name = Pods;
+			path = Pods;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -140,13 +140,13 @@
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "wondertalesroot" */;
 			buildPhases = (
 				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
-				92008CD930631CFA7117DBD0 /* [Expo] Configure project */,
+				C7DB835039F8803F742EE29C /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
-				57D01C1EF31ED99735A45EAF /* [CP] Embed Pods Frameworks */,
+				6BD62A6C5AC87EFEF2F5473D /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -196,7 +196,7 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				AB48AED640738241721567CC /* PrivacyInfo.xcprivacy in Resources */,
+				916AEF73DA18086CB168EC23 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -242,7 +242,7 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		57D01C1EF31ED99735A45EAF /* [CP] Embed Pods Frameworks */ = {
+		6BD62A6C5AC87EFEF2F5473D /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -290,7 +290,7 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-wondertalesroot/Pods-wondertalesroot-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		92008CD930631CFA7117DBD0 /* [Expo] Configure project */ = {
+		C7DB835039F8803F742EE29C /* [Expo] Configure project */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -322,7 +322,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
-				1B37E4E85BE627F3BABF162A /* ExpoModulesProvider.swift in Sources */,
+				92B5945EEE67999FE82C5103 /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -331,7 +331,7 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 732AD2F2039005DC445DC8FA /* Pods-wondertalesroot.debug.xcconfig */;
+			baseConfigurationReference = EF1F7D26CCEC880171F5BD6C /* Pods-wondertalesroot.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -367,7 +367,7 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 7737A1907EDC6F066DA28321 /* Pods-wondertalesroot.release.xcconfig */;
+			baseConfigurationReference = EF0082EFB6F7EA324B312652 /* Pods-wondertalesroot.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
