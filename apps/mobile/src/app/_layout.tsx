@@ -62,6 +62,34 @@ export default function RootLayout() {
                 }}
               />
               <Stack.Screen
+                name="children"
+                options={{
+                  presentation: 'formSheet',
+                  // iOS-native partial sheet ("popup" feel); on Android the
+                  // runtime falls back to a full-screen modal.
+                  sheetAllowedDetents: [0.7, 1],
+                  sheetCornerRadius: 24,
+                  sheetGrabberVisible: true,
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="imagine"
+                options={{
+                  presentation: 'card',
+                  animation: 'slide_from_bottom',
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="book/[id]"
+                options={{
+                  presentation: 'card',
+                  animation: 'slide_from_right',
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
                 name="dev-menu"
                 options={{
                   presentation: 'modal',

@@ -19,10 +19,19 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:reset": "prisma migrate reset",
     "prisma:deploy": "prisma migrate deploy",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "prisma:seed": "prisma db seed",
+    "bull-board": "ts-node -r tsconfig-paths/register scripts/bull-board.ts"
+  },
+  "prisma": {
+    "seed": "ts-node -r tsconfig-paths/register prisma/seed.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.665.0",
+    "@aws-sdk/s3-request-presigner": "^3.665.0",
     "@better-auth/expo": "^1.2.0",
+    "@bull-board/api": "^7.0.0",
+    "@bull-board/express": "^7.0.0",
     "@keyv/redis": "^4.0.0",
     "@liaoliaots/nestjs-redis-health": "^9.0.4",
     "@nestjs/bullmq": "^11.0.0",
@@ -40,10 +49,14 @@
     "cache-manager": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "express": "^5.2.1",
     "ioredis": "^5.4.1",
     "jsonwebtoken": "^9.0.2",
     "keyv": "^5.0.0",
+    "multer": "^1.4.5-lts.1",
+    "openai": "^4.85.0",
     "reflect-metadata": "^0.2.2",
+    "replicate": "^1.0.1",
     "rxjs": "^7.8.1"
   },
   "devDependencies": {
@@ -55,6 +68,7 @@
     "@types/express": "^5.0.0",
     "@types/jest": "^29.5.14",
     "@types/jsonwebtoken": "^9.0.7",
+    "@types/multer": "^1.4.12",
     "@types/node": "^22.0.0",
     "@types/supertest": "^6.0.2",
     "jest": "^29.7.0",

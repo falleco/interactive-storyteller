@@ -17,8 +17,11 @@ model User {
   createdAt     DateTime @map("created_at")
   updatedAt     DateTime @map("updated_at")
 
-  sessions Session[]
-  accounts Account[]
+  sessions       Session[]
+  accounts       Account[]
+  children       ChildProfile[]
+  books          Book[]
+  storyTemplates StoryTemplate[]
 
   @@map("user")
 }
@@ -65,4 +68,152 @@ model Verification {
   updatedAt  DateTime? @map("updated_at")
 
   @@map("verification")
+}
+
+model ChildProfile {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  gender    String?
+  age       Int
+  imageUrl  String?  @map("image_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  books Book[]
+
+  @@index([userId])
+  @@map("child_profile")
+}
+
+model Storyteller {
+  id              String   @id @default(cuid())
+  identifier      String
+  language        String
+  name            String
+  model           String
+  voice           String
+  imageUrl        String   @map("image_url")
+  previewAudioUrl String   @map("preview_audio_url")
+  enabled         Boolean  @default(true)
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([language, identifier])
+  @@index([language, enabled, sortOrder])
+  @@map("storyteller")
+}
+
+model Book {
+  id                   String        @id @default(cuid())
+  userId               String        @map("user_id")
+  user                 User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  childProfileId       String?       @map("child_profile_id")
+  childProfile         ChildProfile? @relation(fields: [childProfileId], references: [id], onDelete: SetNull)
+  status               String        @default("draft")
+  mode                 String
+  language             String
+  storyteller          String
+  templateId           String?       @map("template_id")
+  templateLabel        String?       @map("template_label")
+  theme                String?
+  title                String
+  /// Structured world bible generated up-front so every page and image
+  /// prompt can stay consistent (world, main character, supporting cast,
+  /// art style, narrative theme). Shape defined by `StoryBible` in
+  /// game-master/types.ts.
+  storyBible           Json?         @map("story_bible")
+  characterDescription String?       @map("character_description")
+  coverImagePrompt     String?       @map("cover_image_prompt")
+  coverImageUrl        String?       @map("cover_image_url")
+  coverImageObjectKey  String?       @map("cover_image_object_key")
+  titleAudioUrl        String?       @map("title_audio_url")
+  titleAudioObjectKey  String?       @map("title_audio_object_key")
+  snapshotUrl          String?       @map("snapshot_url")
+  snapshotObjectKey    String?       @map("snapshot_object_key")
+  promptTokens         Int           @default(0) @map("prompt_tokens")
+  completionTokens     Int           @default(0) @map("completion_tokens")
+  totalTokens          Int           @default(0) @map("total_tokens")
+  pageCount            Int           @default(0) @map("page_count")
+  completedAt          DateTime?     @map("completed_at")
+  completedReadCount   Int           @default(0) @map("completed_read_count")
+  lastCompletedReadAt  DateTime?     @map("last_completed_read_at")
+  createdAt            DateTime      @default(now()) @map("created_at")
+  updatedAt            DateTime      @updatedAt @map("updated_at")
+
+  pages BookPage[]
+
+  @@index([userId, createdAt])
+  @@index([childProfileId])
+  @@map("book")
+}
+
+model BookPage {
+  id                 String   @id @default(cuid())
+  bookId             String   @map("book_id")
+  book               Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  pageNumber         Int      @map("page_number")
+  title              String
+  content            String
+  narrationText      String   @map("narration_text")
+  textAssetUrl       String?  @map("text_asset_url")
+  textAssetObjectKey String?  @map("text_asset_object_key")
+  imagePrompt        String?  @map("image_prompt")
+  imageUrl           String?  @map("image_url")
+  imageObjectKey     String?  @map("image_object_key")
+  audioUrl           String?  @map("audio_url")
+  audioObjectKey     String?  @map("audio_object_key")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  choices BookChoice[]
+
+  @@unique([bookId, pageNumber])
+  @@index([bookId, createdAt])
+  @@map("book_page")
+}
+
+model BookChoice {
+  id             String   @id @default(cuid())
+  bookPageId     String   @map("book_page_id")
+  bookPage       BookPage @relation(fields: [bookPageId], references: [id], onDelete: Cascade)
+  choiceIndex    Int      @map("choice_index")
+  label          String
+  imagePrompt    String?  @map("image_prompt")
+  imageUrl       String?  @map("image_url")
+  imageObjectKey String?  @map("image_object_key")
+  selected       Boolean  @default(false)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@unique([bookPageId, choiceIndex])
+  @@index([bookPageId, createdAt])
+  @@map("book_choice")
+}
+
+/**
+ * Story prompts/themes that seed the GameMaster. A row with `userId = null`
+ * is a public/curated template visible to everyone; a row with a `userId`
+ * is owned by that user and visible only to them.
+ */
+model StoryTemplate {
+  id              String   @id @default(cuid())
+  userId          String?  @map("user_id")
+  user            User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?
+  theme           String
+  language        String?
+  coverImageUrl   String?  @map("cover_image_url")
+  coverImageObjectKey String? @map("cover_image_object_key")
+  enabled         Boolean  @default(true)
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([enabled, sortOrder])
+  @@map("story_template")
 }

@@ -1,28 +1,33 @@
 import { Image } from 'expo-image';
 
+const ICON_SIZE = { width: 56, height: 56 };
+
+type IconProps = { color: string };
+
 export const icons = {
-  index: (props: any) => (
+  index: (_props: IconProps) => (
     <Image
       contentFit="cover"
       transition={1000}
-      source={require('@/assets/images/hud/combat_512.png')}
-      style={{ width: 56, height: 56 }}
+      source={require('@/assets/images/hud/book.png')}
+      style={ICON_SIZE}
     />
   ),
-  equipment: (props: any) => (
+  // Placeholder art — swap when proper "children" tab icon lands.
+  children: (_props: IconProps) => (
     <Image
       contentFit="cover"
       transition={1000}
       source={require('@/assets/images/hud/bag_512.png')}
-      style={{ width: 56, height: 56 }}
+      style={ICON_SIZE}
     />
   ),
-  luthier: (props: any) => (
+  settings: (_props: IconProps) => (
     <Image
       contentFit="cover"
       transition={1000}
-      source={require('@/assets/images/hud/shop_512.png')}
-      style={{ width: 56, height: 56 }}
+      source={require('@/assets/images/hud/settings.png')}
+      style={ICON_SIZE}
     />
   ),
 };

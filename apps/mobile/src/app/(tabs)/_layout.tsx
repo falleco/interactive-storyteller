@@ -18,33 +18,29 @@ export default function TabLayout() {
       tabBar={(props) => <TabBar {...props} />}
     >
       <Tabs.Screen
-        name="equipment"
+        name="children"
         options={{
-          title: 'Tab Two',
+          title: 'Children',
           tabBarIcon: ({ color }) => (
-            <IconSymbol
-              size={28}
-              name="square.stack.3d.up.fill"
-              color={color}
-            />
+            <IconSymbol size={28} name="person.2.fill" color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: 'Library',
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="house.fill" color={color} />
+            <IconSymbol size={28} name="books.vertical.fill" color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="luthier"
+        name="settings"
         options={{
-          title: 'Tab Three',
+          title: 'Settings',
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="person.fill" color={color} />
+            <IconSymbol size={28} name="gearshape.fill" color={color} />
           ),
         }}
       />

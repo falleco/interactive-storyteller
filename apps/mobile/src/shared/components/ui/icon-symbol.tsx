@@ -23,7 +23,8 @@ const MAPPING = {
   'chevron.right': 'chevron-right',
   'gearshape.fill': 'settings',
   'person.fill': 'person',
-  'square.stack.3d.up.fill': 'inventory-2',
+  'person.2.fill': 'people',
+  'books.vertical.fill': 'auto-stories',
 } as IconMapping;
 
 /**

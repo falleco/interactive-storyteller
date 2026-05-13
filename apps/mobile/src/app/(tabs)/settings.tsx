@@ -1,20 +1,15 @@
-import { router } from 'expo-router';
 import { Alert, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SettingsList } from '~/features/settings';
-import { FloatingButton } from '~/shared/components/core/floating-button';
+import { ThemedText } from '~/shared/components/themed-text';
 import { useAuth } from '~/shared/hooks/use-auth';
 import { useThemeColor } from '~/shared/hooks/use-theme-color';
 import type { SettingSection } from '~/shared/types/settings';
 import { SettingActionType } from '~/shared/types/settings';
 
-export default function SettingsScreen() {
+export default function SettingsTab() {
   const backgroundColor = useThemeColor({}, 'background');
   const { user } = useAuth();
-
-  const handleClose = () => {
-    router.back();
-  };
 
   const handleComingSoon = (feature: string) => {
     Alert.alert(
@@ -38,6 +33,20 @@ export default function SettingsScreen() {
           icon: '👤',
           actionType: SettingActionType.NAVIGATION,
           route: '/settings/account',
+        },
+      ],
+    },
+    {
+      id: 'content',
+      title: 'Content',
+      items: [
+        {
+          id: 'templates',
+          title: 'Story templates',
+          subtitle: 'Edit the prompts used when creating new stories',
+          icon: '📝',
+          actionType: SettingActionType.NAVIGATION,
+          route: '/settings/templates',
         },
       ],
     },
@@ -111,16 +120,21 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor }}>
-      <ScrollView className="flex-1 p-5" contentContainerClassName="pb-20">
+      <View className="px-5 pt-2 pb-1">
+        <ThemedText className="text-2xl font-black text-black">
+          ⚙️ Settings
+        </ThemedText>
+      </View>
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{
+          paddingHorizontal: 20,
+          paddingTop: 8,
+          paddingBottom: 220,
+        }}
+      >
         <SettingsList sections={sections} />
       </ScrollView>
-      <View className="absolute bottom-10 right-0 left-0 justify-center items-center p-0 m-0">
-        <FloatingButton
-          size="lg"
-          className="self-center"
-          onPress={handleClose}
-        />
-      </View>
     </SafeAreaView>
   );
 }
