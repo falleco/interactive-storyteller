@@ -1,8 +1,8 @@
 {
   "android": {
-    "package": "com.anonymous.wondertalesroot"
+    "package": "com.wondertalesai.app"
   },
   "ios": {
-    "bundleIdentifier": "com.anonymous.wondertalesroot"
+    "bundleIdentifier": "com.wondertalesai.app"
   }
 }

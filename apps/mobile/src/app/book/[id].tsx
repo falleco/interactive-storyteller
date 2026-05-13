@@ -44,6 +44,24 @@ export default function BookDetailScreen() {
     await refetch();
   };
 
+  // While the book is ready, render the player edge-to-edge — the slide's
+  // pastel background should reach the device edges (under the status bar
+  // and home indicator), not get capped by a white SafeAreaView. The
+  // player has its own back button + page indicator that respect insets
+  // internally, so there's no header to render here.
+  if (book && book.status === 'ready') {
+    return (
+      <View className="flex-1">
+        <BookPlayer
+          book={book}
+          onComplete={handleComplete}
+          onChoose={handleChoose}
+          onBack={handleClose}
+        />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor }}>
       <ModalHeader
@@ -65,14 +83,6 @@ export default function BookDetailScreen() {
             {error.message}
           </ThemedText>
         </View>
-      )}
-
-      {book && book.status === 'ready' && (
-        <BookPlayer
-          book={book}
-          onComplete={handleComplete}
-          onChoose={handleChoose}
-        />
       )}
 
       {book && book.status !== 'ready' && <GeneratingView book={book} />}

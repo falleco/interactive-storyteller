@@ -53,7 +53,13 @@ export function useBookAudio(options: UseBookAudioOptions): UseBookAudioResult {
     if (previousSourceRef.current === source) return;
 
     previousSourceRef.current = source;
-    didCompleteRef.current = false;
+    // Suppress completion until the new audio actually starts playing.
+    // The status effect (declared below) flushes in the same commit as
+    // this one and still sees the *previous* source's "finished" status —
+    // resetting the flag to false here would let it fire `onComplete`
+    // immediately against the new source. We re-arm it from the status
+    // effect once we see playback advance past 0.
+    didCompleteRef.current = true;
     try {
       player.replace({ uri: source });
       if (autoPlay) {
@@ -78,6 +84,16 @@ export function useBookAudio(options: UseBookAudioOptions): UseBookAudioResult {
   // Detect natural completion.
   useEffect(() => {
     if (!status) return;
+    // Re-arm completion once the *new* source is actually playing — see
+    // the source-change effect above for why we start out suppressed.
+    if (
+      status.isLoaded &&
+      status.duration > 0 &&
+      status.currentTime > 0 &&
+      status.currentTime < status.duration - 0.1
+    ) {
+      didCompleteRef.current = false;
+    }
     const didReachEnd = hasReachedEnd(status);
     if (didReachEnd && !didCompleteRef.current) {
       didCompleteRef.current = true;

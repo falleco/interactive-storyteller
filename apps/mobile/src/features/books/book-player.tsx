@@ -1,14 +1,10 @@
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  FlatList,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-  Pressable,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlatButton } from '~/shared/components/core/flat-button';
+import { Slider } from '~/shared/components/core/liquid-swipe';
 import { ThemedText } from '~/shared/components/themed-text';
 import { cn } from '~/shared/lib/cn';
 import {
@@ -30,6 +26,12 @@ interface BookPlayerProps {
    * progress automatically.
    */
   onChoose?: (input: { choiceIndex: number }) => Promise<void> | void;
+  /**
+   * Tap-back from the player's own back button. The host screen is also
+   * free to render its own header — this is a redundant exit affordance
+   * that's always visible over the slide content.
+   */
+  onBack?: () => void;
 }
 
 type Slide =
@@ -39,58 +41,105 @@ type Slide =
   | { kind: 'loading-next'; afterPageNumber: number }
   | { kind: 'end' };
 
-export function BookPlayer({ book, onComplete, onChoose }: BookPlayerProps) {
-  const { width } = useWindowDimensions();
-  const listRef = useRef<FlatList<Slide>>(null);
+/**
+ * Pastel backdrop picked per slide so the wave has something colourful to
+ * reveal — keeps each page-turn visually distinct for the kids reading
+ * along. Kept here (not in the Slider) because the colour is data-driven
+ * by the slide kind, not a generic prop of the swipe primitive.
+ */
+function backgroundColorFor(slide: Slide | undefined): string {
+  if (!slide) return '#f5f3ff';
+  switch (slide.kind) {
+    case 'cover':
+      return '#ede9fe'; // purple-100
+    case 'page':
+      // Alternate two warm tones based on page number so consecutive pages
+      // contrast against each other when revealed by the wave.
+      return slide.page.pageNumber % 2 === 0 ? '#fef3c7' : '#fce7f3';
+    case 'choices':
+      return '#fed7aa'; // orange-200
+    case 'loading-next':
+      return '#e0e7ff'; // indigo-100
+    case 'end':
+      return '#dcfce7'; // green-100
+  }
+}
+
+export function BookPlayer({
+  book,
+  onComplete,
+  onChoose,
+  onBack,
+}: BookPlayerProps) {
+  const insets = useSafeAreaInsets();
   const [index, setIndex] = useState(0);
   const [isFinishing, setIsFinishing] = useState(false);
   const [pendingChoiceIndex, setPendingChoiceIndex] = useState<number | null>(
     null,
   );
+  /**
+   * Whether the narration audio for the current slide has finished. Drives
+   * whether the swipe affordances are armed — kids only get to turn the
+   * page once the page has actually been read to them.
+   *
+   * Paired with a "track" we compare against the live slide key so the
+   * state resets synchronously during render when the slide changes. A
+   * `useEffect`-based reset leaks the previous value into the first render
+   * of the new slide and the wave flashes for one frame before snapping
+   * back — the in-render reset (React docs' recommended pattern) avoids
+   * that.
+   */
+  const [audioFinished, setAudioFinished] = useState(false);
+  const [audioFinishedTrack, setAudioFinishedTrack] = useState<string | null>(
+    null,
+  );
 
   const slides = useMemo<Slide[]>(() => buildSlides(book), [book]);
+  // Clamp the index — if the book updates and the previous index points
+  // past the new length (e.g. interactive page lost the choices slide and
+  // gained a regular page), bring it back into range so the player doesn't
+  // crash.
+  const safeIndex = Math.min(
+    Math.max(index, 0),
+    Math.max(slides.length - 1, 0),
+  );
+  const currentSlide = slides[safeIndex];
+  const prevSlide = slides[safeIndex - 1];
+  const nextSlide = slides[safeIndex + 1];
 
-  const currentSlide = slides[index];
   const audioSource = useMemo(() => {
     if (currentSlide?.kind === 'cover') return book.titleAudioUrl;
     if (currentSlide?.kind === 'page') return currentSlide.page.audioUrl;
     return null;
   }, [currentSlide, book.titleAudioUrl]);
 
-  const advance = useCallback(() => {
-    setIndex((prev) => {
-      const next = Math.min(prev + 1, slides.length - 1);
-      if (next !== prev) {
-        listRef.current?.scrollToIndex({ index: next, animated: true });
-      }
-      return next;
-    });
-  }, [slides.length]);
+  // In-render reset of `audioFinished` so the new slide never gets one
+  // frame of the previous slide's "finished" flag. React sees the setState
+  // during render and re-renders before committing, so the wave/next slide
+  // never have a chance to flash open between slides.
+  const audioTrack = `${safeIndex}|${audioSource ?? 'none'}`;
+  if (audioFinishedTrack !== audioTrack) {
+    setAudioFinishedTrack(audioTrack);
+    setAudioFinished(false);
+  }
 
-  const audio = useBookAudio({
+  useBookAudio({
     source: audioSource,
     autoPlay: true,
-    onComplete: () => {
-      // When narration finishes, gently advance to the next slide.
-      advance();
-    },
+    onComplete: () => setAudioFinished(true),
   });
 
-  // Keep listRef in sync with state if user scrolls.
-  const handleMomentumScrollEnd = (
-    event: NativeSyntheticEvent<NativeScrollEvent>,
-  ) => {
-    const next = Math.round(event.nativeEvent.contentOffset.x / width);
-    if (next !== index) {
-      setIndex(next);
-    }
-  };
+  // Cover + content pages are read aloud — kids only get the page-turn
+  // affordance after the narration finishes. Choices / end / loading-next
+  // slides aren't narrated, so swipes there are armed straight away.
+  const slideExpectsAudio =
+    currentSlide?.kind === 'cover' || currentSlide?.kind === 'page';
+  const canSwipe = !slideExpectsAudio || audioFinished;
 
-  // Reset audio when book changes entirely.
+  // Reset to the cover whenever the book identity changes (different bookId).
   useEffect(() => {
     setIndex(0);
-    listRef.current?.scrollToIndex({ index: 0, animated: false });
-  }, []);
+  }, [book.id]);
 
   const handleFinish = useCallback(async () => {
     if (!onComplete) return;
@@ -115,84 +164,133 @@ export function BookPlayer({ book, onComplete, onChoose }: BookPlayerProps) {
     [onChoose, pendingChoiceIndex],
   );
 
-  return (
-    <View className="flex-1">
-      <FlatList
-        ref={listRef}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        data={slides}
-        keyExtractor={(slide, i) => slideKey(slide, i)}
-        onMomentumScrollEnd={handleMomentumScrollEnd}
-        renderItem={({ item }) => {
-          if (item.kind === 'cover') {
-            return (
-              <CoverSlide
-                width={width}
-                imageUrl={book.coverImageUrl}
-                title={book.title}
-              />
-            );
-          }
-          if (item.kind === 'end') {
-            return (
-              <EndSlide
-                width={width}
-                isFinishing={isFinishing}
-                onFinish={handleFinish}
-              />
-            );
-          }
-          if (item.kind === 'choices') {
-            return (
-              <ChoicesSlide
-                width={width}
-                choices={item.page.choices}
-                pendingChoiceIndex={pendingChoiceIndex}
-                onPick={handlePickChoice}
-              />
-            );
-          }
-          if (item.kind === 'loading-next') {
-            return <LoadingNextSlide width={width} />;
-          }
-          return <PageSlide width={width} page={item.page} />;
-        }}
-      />
+  const renderSlide = (slide: Slide) => {
+    const background = backgroundColorFor(slide);
+    switch (slide.kind) {
+      case 'cover':
+        return (
+          <SlideContainer background={background}>
+            <CoverSlide imageUrl={book.coverImageUrl} title={book.title} />
+          </SlideContainer>
+        );
+      case 'page':
+        return (
+          <SlideContainer background={background}>
+            <PageSlide page={slide.page} />
+          </SlideContainer>
+        );
+      case 'choices':
+        return (
+          <SlideContainer background={background}>
+            <ChoicesSlide
+              choices={slide.page.choices}
+              pendingChoiceIndex={pendingChoiceIndex}
+              onPick={handlePickChoice}
+            />
+          </SlideContainer>
+        );
+      case 'loading-next':
+        return (
+          <SlideContainer background={background}>
+            <LoadingNextSlide />
+          </SlideContainer>
+        );
+      case 'end':
+        return (
+          <SlideContainer background={background}>
+            <EndSlide isFinishing={isFinishing} onFinish={handleFinish} />
+          </SlideContainer>
+        );
+    }
+  };
 
-      <View className="absolute bottom-12 left-0 right-0 items-center">
-        <PageIndicator current={index} total={slides.length} />
-        <View className="mt-3">
+  // Paint the root view with the *current* slide's colour so the screen
+  // edges (status bar, home indicator) blend with the page — the Slider
+  // mounts in `absoluteFill` and any frame where it remounts (on index
+  // change) would otherwise flash white from the screen's default bg.
+  const rootBackground = backgroundColorFor(currentSlide);
+
+  return (
+    <View className="flex-1" style={{ backgroundColor: rootBackground }}>
+      {currentSlide && (
+        // `key` so the Slider tears down its in-flight wave state each
+        // time the index advances — the wave always starts fresh.
+        <Slider
+          key={`${book.id}-${safeIndex}`}
+          index={safeIndex}
+          setIndex={setIndex}
+          // Swipes are gated on the narration finishing — until then the
+          // pull-tabs / wave don't appear because we hand the Slider
+          // `undefined` neighbours.
+          prev={canSwipe && prevSlide ? renderSlide(prevSlide) : undefined}
+          next={canSwipe && nextSlide ? renderSlide(nextSlide) : undefined}
+        >
+          {renderSlide(currentSlide)}
+        </Slider>
+      )}
+
+      {/* Back button — always visible over the slide content. The host
+          screen still renders a ModalHeader of its own; this is a player-
+          owned exit so kids can leave even if they scroll the slides
+          weird and lose the header. */}
+      {onBack && (
+        <View
+          pointerEvents="box-none"
+          style={{ position: 'absolute', top: insets.top + 8, left: 16 }}
+        >
           <Pressable
-            disabled={!audio.hasSource}
-            onPress={audio.toggle}
-            className={cn(
-              'w-16 h-16 rounded-full items-center justify-center',
-              audio.hasSource ? 'bg-black' : 'bg-gray-300 dark:bg-zinc-600',
-            )}
+            onPress={onBack}
+            accessibilityRole="button"
+            accessibilityLabel="Close book"
+            hitSlop={12}
+            className="w-11 h-11 rounded-full bg-black/35 items-center justify-center"
           >
-            <ThemedText className="text-white text-2xl">
-              {audio.isLoading ? '…' : audio.isPlaying ? '⏸' : '▶'}
-            </ThemedText>
+            <MaterialCommunityIcons
+              name="chevron-left"
+              size={26}
+              color="#ffffff"
+            />
           </Pressable>
         </View>
+      )}
+
+      {/* Page indicator pinned to the very bottom, just above the home
+          indicator. Pointer-events off so it doesn't fight the wave for
+          touches near the bottom edge. */}
+      <View
+        pointerEvents="none"
+        className="absolute left-0 right-0 items-center"
+        style={{ bottom: Math.max(insets.bottom, 8) }}
+      >
+        <PageIndicator current={safeIndex} total={slides.length} />
       </View>
     </View>
   );
 }
 
+function SlideContainer({
+  background,
+  children,
+}: {
+  background: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: background }]}>
+      {children}
+    </View>
+  );
+}
+
 function CoverSlide({
-  width,
   imageUrl,
   title,
 }: {
-  width: number;
   imageUrl: string | null;
   title: string;
 }) {
   return (
-    <View style={{ width }} className="px-6 pt-4 items-center">
+    <View className="flex-1 px-6 pt-20 items-center">
       {imageUrl ? (
         <Image
           source={{ uri: imageUrl }}
@@ -217,9 +315,9 @@ function CoverSlide({
   );
 }
 
-function PageSlide({ width, page }: { width: number; page: BookPagePayload }) {
+function PageSlide({ page }: { page: BookPagePayload }) {
   return (
-    <View style={{ width }} className="px-6 pt-4">
+    <View className="flex-1 px-6 pt-20">
       {page.imageUrl ? (
         <Image
           source={{ uri: page.imageUrl }}
@@ -238,9 +336,6 @@ function PageSlide({ width, page }: { width: number; page: BookPagePayload }) {
         </View>
       )}
       <View className="mt-4">
-        <ThemedText className="text-xs uppercase tracking-wider text-gray-500 dark:text-zinc-400 mb-1">
-          Page {page.pageNumber}
-        </ThemedText>
         <ThemedText className="text-xl font-black text-black dark:text-white mb-2">
           {page.title}
         </ThemedText>
@@ -253,16 +348,14 @@ function PageSlide({ width, page }: { width: number; page: BookPagePayload }) {
 }
 
 function EndSlide({
-  width,
   isFinishing,
   onFinish,
 }: {
-  width: number;
   isFinishing: boolean;
   onFinish: () => void;
 }) {
   return (
-    <View style={{ width }} className="px-6 pt-12 items-center">
+    <View className="flex-1 px-6 pt-32 items-center">
       <ThemedText className="text-5xl mb-4">🎉</ThemedText>
       <ThemedText className="text-3xl font-black text-black dark:text-white text-center">
         The end
@@ -285,18 +378,16 @@ function EndSlide({
 }
 
 function ChoicesSlide({
-  width,
   choices,
   pendingChoiceIndex,
   onPick,
 }: {
-  width: number;
   choices: BookChoice[];
   pendingChoiceIndex: number | null;
   onPick: (choiceIndex: number) => void;
 }) {
   return (
-    <View style={{ width }} className="px-6 pt-6">
+    <View className="flex-1 px-6 pt-20">
       <ThemedText className="text-2xl font-black text-black dark:text-white text-center mb-4">
         What happens next?
       </ThemedText>
@@ -346,9 +437,9 @@ function ChoicesSlide({
   );
 }
 
-function LoadingNextSlide({ width }: { width: number }) {
+function LoadingNextSlide() {
   return (
-    <View style={{ width }} className="px-6 pt-24 items-center">
+    <View className="flex-1 px-6 pt-32 items-center">
       <ThemedText className="text-5xl mb-4">✨</ThemedText>
       <ThemedText className="text-2xl font-black text-black dark:text-white text-center">
         Writing the next page…
@@ -408,19 +499,4 @@ function buildSlides(book: BookDetail): Slide[] {
   }
 
   return slides;
-}
-
-function slideKey(slide: Slide, index: number): string {
-  switch (slide.kind) {
-    case 'cover':
-      return 'cover';
-    case 'page':
-      return `p-${slide.page.id}`;
-    case 'choices':
-      return `c-${slide.page.id}`;
-    case 'loading-next':
-      return `ln-${slide.afterPageNumber}`;
-    case 'end':
-      return `end-${index}`;
-  }
 }
