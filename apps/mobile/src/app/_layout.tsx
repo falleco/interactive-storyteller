@@ -13,10 +13,11 @@ import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import '@/global.css';
 
+import { SidebarHost } from '~/shared/components/core/sidebar-host';
 import { DevMenuFab } from '~/shared/dev/dev-menu-fab';
 import { AuthProvider } from '~/shared/hooks/use-auth';
 import { useColorScheme } from '~/shared/hooks/use-color-scheme';
-import { loadStoredThemeMode } from '~/shared/hooks/use-theme-mode';
+import { ColorSchemeProvider } from '~/shared/theme/color-scheme-context';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -35,11 +36,8 @@ export default function RootLayout() {
   });
   const colorScheme = useColorScheme();
 
-  // Restore the user's saved theme preference before the first paint so the
-  // app boots in their chosen mode instead of flashing the system default.
-  useEffect(() => {
-    loadStoredThemeMode();
-  }, []);
+  // The persisted theme preference is restored inside <ColorSchemeProvider>
+  // so it doesn't run before the provider mounts.
 
   useEffect(() => {
     if (loaded || error) {
@@ -54,61 +52,68 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AuthProvider>
-          <ThemeProvider
-            value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}
-          >
-            <Stack>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen
-                name="settings"
-                options={{
-                  presentation: 'card',
-                  animation: 'slide_from_left',
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="family"
-                options={{
-                  presentation: 'formSheet',
-                  // iOS-native partial sheet ("popup" feel); on Android the
-                  // runtime falls back to a full-screen modal.
-                  sheetAllowedDetents: [0.7, 1],
-                  sheetCornerRadius: 24,
-                  sheetGrabberVisible: true,
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="imagine"
-                options={{
-                  presentation: 'card',
-                  animation: 'slide_from_bottom',
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="book/[id]"
-                options={{
-                  presentation: 'card',
-                  animation: 'slide_from_right',
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="dev-menu"
-                options={{
-                  presentation: 'modal',
-                  headerShown: false,
-                  animation: 'slide_from_bottom',
-                }}
-              />
-            </Stack>
-            <DevMenuFab />
-            <StatusBar style="auto" />
-          </ThemeProvider>
-        </AuthProvider>
+        <ColorSchemeProvider>
+          <AuthProvider>
+            <ThemeProvider
+              value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}
+            >
+              <SidebarHost>
+                <Stack>
+                  <Stack.Screen
+                    name="(tabs)"
+                    options={{ headerShown: false }}
+                  />
+                  <Stack.Screen
+                    name="settings"
+                    options={{
+                      presentation: 'card',
+                      animation: 'slide_from_left',
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="family"
+                    options={{
+                      presentation: 'formSheet',
+                      // iOS-native partial sheet ("popup" feel); on Android
+                      // the runtime falls back to a full-screen modal.
+                      sheetAllowedDetents: [0.7, 1],
+                      sheetCornerRadius: 24,
+                      sheetGrabberVisible: true,
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="imagine"
+                    options={{
+                      presentation: 'card',
+                      animation: 'slide_from_bottom',
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="book/[id]"
+                    options={{
+                      presentation: 'card',
+                      animation: 'slide_from_right',
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="dev-menu"
+                    options={{
+                      presentation: 'modal',
+                      headerShown: false,
+                      animation: 'slide_from_bottom',
+                    }}
+                  />
+                </Stack>
+                <DevMenuFab />
+                <StatusBar style="auto" />
+              </SidebarHost>
+            </ThemeProvider>
+          </AuthProvider>
+        </ColorSchemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

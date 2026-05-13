@@ -1,7 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
 import { type Href, router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { Alert, FlatList, Pressable, View } from 'react-native';
 import {
   SafeAreaView,
@@ -9,22 +9,22 @@ import {
 } from 'react-native-safe-area-context';
 import { type BookSummary, useBooks } from '~/features/books';
 import { useParent } from '~/features/parent';
-import { Sidebar, type SidebarItem } from '~/shared/components/core/sidebar';
+import type { SidebarItem } from '~/shared/components/core/sidebar';
+import { useSidebar } from '~/shared/components/core/sidebar-host';
 import { ThemedText } from '~/shared/components/themed-text';
 import { useAuth } from '~/shared/hooks/use-auth';
 import { useThemeColor } from '~/shared/hooks/use-theme-color';
-import { useThemeMode } from '~/shared/hooks/use-theme-mode';
 import { cn } from '~/shared/lib/cn';
+import { useColorSchemeContext } from '~/shared/theme/color-scheme-context';
 
 export default function HomeTab() {
   const backgroundColor = useThemeColor({}, 'background');
   const { user } = useAuth();
   const { books, isLoading, error, refresh, remove } = useBooks();
   const { parent, refresh: refreshParent } = useParent();
-  const { effective: themeMode, toggle: toggleTheme } = useThemeMode();
+  const { open: openSidebar } = useSidebar();
 
   const insets = useSafeAreaInsets();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Refetch on focus — the wizard modal mounts its own useBooks instance, so
   // the create there doesn't reach this tab's state once we return.
@@ -57,6 +57,17 @@ export default function HomeTab() {
     .charAt(0)
     .toUpperCase();
 
+  const handleOpenMenu = () => {
+    // Header is rendered as a component so it can hook into live theme +
+    // parent state — opening the sidebar once captures a stable JSX node
+    // that internally re-renders when the theme or profile changes.
+    openSidebar({
+      side: 'left',
+      items: sidebarItems,
+      header: <DrawerHeader />,
+    });
+  };
+
   const handleDeleteBook = (id: string, title: string) => {
     Alert.alert('Delete story', `Remove "${title}"? This cannot be undone.`, [
       { text: 'Cancel', style: 'cancel' },
@@ -81,7 +92,7 @@ export default function HomeTab() {
     <SafeAreaView className="flex-1" style={{ backgroundColor }}>
       <View className="flex-row items-center gap-3 px-5 pt-2 pb-1">
         <Pressable
-          onPress={() => setSidebarOpen(true)}
+          onPress={handleOpenMenu}
           accessibilityRole="button"
           accessibilityLabel="Open menu"
           hitSlop={8}
@@ -148,56 +159,70 @@ export default function HomeTab() {
           )}
         />
       )}
-
-      <Sidebar
-        visible={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        side="left"
-        items={sidebarItems}
-        header={
-          <View className="flex-row items-center gap-3">
-            {avatarUri ? (
-              <Image
-                source={{ uri: avatarUri }}
-                style={{ width: 56, height: 56, borderRadius: 28 }}
-                contentFit="cover"
-              />
-            ) : (
-              <View className="w-14 h-14 rounded-full bg-purple-200 items-center justify-center">
-                <ThemedText className="text-xl font-black text-purple-900">
-                  {avatarInitial}
-                </ThemedText>
-              </View>
-            )}
-            <View className="flex-1">
-              <ThemedText
-                numberOfLines={1}
-                className="text-lg font-black text-black dark:text-white"
-              >
-                {parent?.name || user?.name || 'Hey there!'}
-              </ThemedText>
-            </View>
-            <Pressable
-              onPress={toggleTheme}
-              accessibilityRole="button"
-              accessibilityLabel={
-                themeMode === 'dark'
-                  ? 'Switch to light mode'
-                  : 'Switch to dark mode'
-              }
-              hitSlop={8}
-              className="w-10 h-10 rounded-full items-center justify-center bg-gray-100 dark:bg-zinc-800"
-            >
-              <MaterialCommunityIcons
-                name={themeMode === 'dark' ? 'weather-sunny' : 'weather-night'}
-                size={20}
-                color={themeMode === 'dark' ? '#facc15' : '#1e293b'}
-              />
-            </Pressable>
-          </View>
-        }
-      />
     </SafeAreaView>
+  );
+}
+
+/**
+ * Live header rendered inside the sidebar. Hooks into the parent profile
+ * and the theme context so the avatar, name and sun/moon icon stay in
+ * sync with state changes while the drawer is open.
+ */
+function DrawerHeader() {
+  const { user } = useAuth();
+  const { parent } = useParent();
+  const { scheme: themeMode, toggle: toggleTheme } = useColorSchemeContext();
+
+  const avatarUri = parent?.profileImageUrl ?? parent?.image ?? null;
+  const avatarInitial = (parent?.name || user?.name || '?')
+    .charAt(0)
+    .toUpperCase();
+
+  return (
+    <View className="flex-row items-center gap-3">
+      {avatarUri ? (
+        <Image
+          source={{ uri: avatarUri }}
+          style={{ width: 56, height: 56, borderRadius: 28 }}
+          contentFit="cover"
+        />
+      ) : (
+        <View className="w-14 h-14 rounded-full bg-purple-200 items-center justify-center">
+          <ThemedText className="text-xl font-black text-purple-900">
+            {avatarInitial}
+          </ThemedText>
+        </View>
+      )}
+      <View className="flex-1">
+        <ThemedText
+          numberOfLines={1}
+          className="text-lg font-black text-black dark:text-white"
+        >
+          {parent?.name || user?.name || 'Hey there!'}
+        </ThemedText>
+      </View>
+      <Pressable
+        onPress={(event) => {
+          // Use the touch coords as the origin of the circular reveal.
+          // `pageX/pageY` are window-relative, which is what
+          // `makeImageFromView` works in.
+          const { pageX, pageY } = event.nativeEvent;
+          toggleTheme(pageX, pageY);
+        }}
+        accessibilityRole="button"
+        accessibilityLabel={
+          themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
+        }
+        hitSlop={8}
+        className="w-10 h-10 rounded-full items-center justify-center bg-gray-100 dark:bg-zinc-800"
+      >
+        <MaterialCommunityIcons
+          name={themeMode === 'dark' ? 'weather-sunny' : 'weather-night'}
+          size={20}
+          color={themeMode === 'dark' ? '#facc15' : '#1e293b'}
+        />
+      </Pressable>
+    </View>
   );
 }
 

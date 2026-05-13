@@ -1,12 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useEffect } from 'react';
-import {
-  Modal,
-  Pressable,
-  StyleSheet,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { useEffect, useState } from 'react';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -41,10 +35,10 @@ const PANEL_WIDTH_RATIO = 0.78;
 const ANIM_DURATION = 240;
 
 /**
- * Slide-in drawer panel. Built on `<Modal animationType="none">` plus a
- * reanimated translateX — RN's built-in `slide` mode only slides from the
- * bottom, so we drive the transform ourselves and pick the right
- * off-screen direction based on the `side` prop.
+ * Slide-in drawer panel. Rendered in-tree (not via React Native's `<Modal>`)
+ * so it sits inside the `ColorSchemeProvider`'s captured view and gets
+ * included in the snapshot used by the animated theme transition. The
+ * panel slides via reanimated translateX and the backdrop fades.
  */
 export function Sidebar({
   visible,
@@ -67,9 +61,13 @@ export function Sidebar({
 
   const translateX = useSharedValue(offscreen);
   const backdropOpacity = useSharedValue(0);
+  // Keep the overlay mounted briefly after `visible` flips to false so the
+  // exit animation has time to play; unmount once it's safely off-screen.
+  const [shouldMount, setShouldMount] = useState(visible);
 
   useEffect(() => {
     if (visible) {
+      setShouldMount(true);
       translateX.value = withTiming(0, {
         duration: ANIM_DURATION,
         easing: Easing.out(Easing.cubic),
@@ -81,6 +79,9 @@ export function Sidebar({
         easing: Easing.in(Easing.cubic),
       });
       backdropOpacity.value = withTiming(0, { duration: ANIM_DURATION });
+      // After the slide-out finishes, drop the overlay from the tree.
+      const timer = setTimeout(() => setShouldMount(false), ANIM_DURATION + 20);
+      return () => clearTimeout(timer);
     }
   }, [visible, offscreen, translateX, backdropOpacity]);
 
@@ -94,60 +95,61 @@ export function Sidebar({
 
   const panelEdgeStyle = side === 'left' ? styles.panelLeft : styles.panelRight;
 
+  if (!shouldMount) return null;
+
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      onRequestClose={onClose}
+    // pointerEvents="box-none" on the absoluteFill so taps outside the
+    // panel/backdrop pass through to the underlying tree (matters between
+    // close-press and the unmount).
+    <View
+      pointerEvents={visible ? 'auto' : 'box-none'}
+      style={styles.overlayRoot}
     >
-      <View style={StyleSheet.absoluteFill}>
-        <Animated.View
-          pointerEvents={visible ? 'auto' : 'none'}
-          style={[styles.backdrop, backdropStyle]}
-        >
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={onClose}
-            accessibilityLabel="Close menu"
-          />
-        </Animated.View>
+      <Animated.View
+        pointerEvents={visible ? 'auto' : 'none'}
+        style={[styles.backdrop, backdropStyle]}
+      >
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={onClose}
+          accessibilityLabel="Close menu"
+        />
+      </Animated.View>
 
-        <Animated.View
-          style={[
-            styles.panelBase,
-            panelEdgeStyle,
-            {
-              width: panelWidth,
-              paddingTop: top + 16,
-              paddingBottom: bottom + 16,
-              backgroundColor: panelBackground,
-            },
-            panelStyle,
-          ]}
-        >
-          {header ? <View className="px-5 pb-4">{header}</View> : null}
+      <Animated.View
+        style={[
+          styles.panelBase,
+          panelEdgeStyle,
+          {
+            width: panelWidth,
+            paddingTop: top + 16,
+            paddingBottom: bottom + 16,
+            backgroundColor: panelBackground,
+          },
+          panelStyle,
+        ]}
+      >
+        {header ? <View className="px-5 pb-4">{header}</View> : null}
 
-          <View className="px-3 gap-1">
+        <View className="px-3 gap-1">
+          {items
+            .filter((i) => !i.isDangerous)
+            .map((item) => (
+              <SidebarRow key={item.id} item={item} onClose={onClose} />
+            ))}
+        </View>
+
+        {items.some((i) => i.isDangerous) ? (
+          <View className="px-3 mt-auto gap-1">
             {items
-              .filter((i) => !i.isDangerous)
+              .filter((i) => i.isDangerous)
               .map((item) => (
                 <SidebarRow key={item.id} item={item} onClose={onClose} />
               ))}
           </View>
-
-          {items.some((i) => i.isDangerous) ? (
-            <View className="px-3 mt-auto gap-1">
-              {items
-                .filter((i) => i.isDangerous)
-                .map((item) => (
-                  <SidebarRow key={item.id} item={item} onClose={onClose} />
-                ))}
-            </View>
-          ) : null}
-        </Animated.View>
-      </View>
-    </Modal>
+        ) : null}
+      </Animated.View>
+    </View>
   );
 }
 
@@ -198,6 +200,14 @@ function SidebarRow({
 }
 
 const styles = StyleSheet.create({
+  overlayRoot: {
+    ...StyleSheet.absoluteFillObject,
+    // High zIndex so we sit above route content and the tab bar; the
+    // ColorScheme overlay Canvas is still above us, which is what we want
+    // — the snapshot transition needs to mask over the sidebar too.
+    zIndex: 100,
+    elevation: 100,
+  },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
