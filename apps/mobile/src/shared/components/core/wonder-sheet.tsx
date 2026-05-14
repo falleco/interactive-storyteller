@@ -1,9 +1,11 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Canvas, Fill, Shader, Skia } from '@shopify/react-native-skia';
 import * as Haptics from 'expo-haptics';
+import { Image } from 'expo-image';
 import { type Href, router } from 'expo-router';
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  type LayoutChangeEvent,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,19 +14,26 @@ import {
 } from 'react-native';
 import Animated, {
   Easing,
+  runOnJS,
   useAnimatedStyle,
   useDerivedValue,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { BookMode } from '~/features/books';
 import {
   type StoryTemplate,
   useStoryTemplates,
 } from '~/features/story-templates';
-import { ENABLED_LANGUAGES } from '~/features/storytellers';
+import {
+  ENABLED_LANGUAGES,
+  type Storyteller,
+  useStorytellers,
+} from '~/features/storytellers';
 import { ThemedText } from '~/shared/components/themed-text';
 import { useColorScheme } from '~/shared/hooks/use-color-scheme';
+import { cn } from '~/shared/lib/cn';
 import {
   CREATE_BUTTON_RADIUS,
   TAB_BAR_HEIGHT,
@@ -41,14 +50,8 @@ const BLOB_SMOOTH_K = 38;
  * SDF-driven blob shader. Two shapes — a circle pinned at the FAB and a
  * rounded rectangle growing upward — are smoothly merged via `smin` so
  * the rectangle appears to *grow out of* the FAB when `u_progress` rises
- * from 0 (closed) to 1 (open). At progress 0 only the circle is visible;
- * at 1 we get a tall pill connected to the FAB with a soft, organic
- * waist where they join. Inspired by Candillon's Reflectly tab sheet.
+ * from 0 (closed) to 1 (open). Inspired by Candillon's Reflectly tab sheet.
  */
-// `Skia.RuntimeEffect.Make` returns `SkRuntimeEffect | null` (null only on
-// compile error). The module-level throw below would still satisfy TS's
-// flow analysis, but Skia's `<Shader source>` prop is invariant — easier
-// to assert here so the narrowed type flows everywhere it's used.
 const SHADER_SOURCE = Skia.RuntimeEffect.Make(`
 uniform float u_progress;
 uniform float2 u_resolution;
@@ -76,18 +79,11 @@ float smin(float a, float b, float k) {
 }
 
 half4 main(float2 fragCoord) {
-  // Skip entirely when the sheet is closed — otherwise the SDF circle
-  // at the FAB position would paint over the purple button even at rest.
   if (u_progress < 0.005) return half4(0.0, 0.0, 0.0, 0.0);
   float circle = sdCircle(fragCoord - u_buttonCenter, u_buttonRadius);
 
   float halfW = u_sheetWidth * 0.5;
   float halfH = u_sheetHeight * u_progress * 0.5;
-  // Position the rectangle so its bottom edge sits just above the
-  // button when fully open. Subtracting halfH puts the centre that
-  // many pixels above the button's top edge — at progress 0 halfH is 0
-  // and the rectangle collapses into the circle, so smin just returns
-  // the circle.
   float2 rectCenter = float2(
     u_resolution.x * 0.5,
     u_buttonCenter.y - u_buttonRadius - halfH
@@ -105,7 +101,7 @@ half4 main(float2 fragCoord) {
 if (!SHADER_SOURCE) {
   throw new Error('[wonder-sheet] Failed to compile blob shader');
 }
-const BLOB_SHADER = SHADER_SOURCE; // narrowed non-null for Skia's invariant prop
+const BLOB_SHADER = SHADER_SOURCE;
 
 interface WonderSheetProps {
   open: boolean;
@@ -113,17 +109,120 @@ interface WonderSheetProps {
   onToggle: () => void;
 }
 
+/**
+ * Wizard step the sheet is currently on. Steps are 1-indexed in the
+ * data flow but converted to 0-indexed when animating the carousel.
+ */
+type Step = 1 | 2 | 3;
+
+const STEP_TITLES: Record<Step, string> = {
+  1: 'Adventure mode',
+  2: 'Pick a template',
+  3: 'Choose a narrator',
+};
+
 export function WonderSheet({ open, onClose, onToggle }: WonderSheetProps) {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const scheme = useColorScheme();
-  const { templates, isLoading } = useStoryTemplates();
 
-  // Match the imagine screen's filter: show templates whose `language` is
-  // null (universal) or matches the default language. Same default used
-  // there (`ENABLED_LANGUAGES[0]`) so the lists stay in sync; once we add
-  // a persisted language preference the two should both read from it.
+  // ─── wizard state ────────────────────────────────────────────────
+  // `step` is what the user picked; `displayedStep` lags behind during
+  // a transition so we can swap the rendered content while the sheet
+  // is faded to 0 — avoids the "see new content at old height, then
+  // see blob morph" glitch that happens when the swap is instantaneous
+  // and the blob's height tween takes 320ms.
+  const [step, setStep] = useState<Step>(1);
+  const [displayedStep, setDisplayedStep] = useState<Step>(1);
+  const [mode, setMode] = useState<BookMode | null>(null);
+  const [templateId, setTemplateId] = useState<string | null>(null);
+
+  const contentOpacity = useSharedValue(1);
+  // Ref shadow of `displayedStep` so the orchestrator effect can read
+  // the latest value without listing it as a dependency. If it were a
+  // dep, `setDisplayedStep` inside the fade-out callback would change
+  // it, re-running this effect — whose cleanup would clear the
+  // fade-in timer and the content would stay invisible forever.
+  const displayedStepRef = useRef<Step>(displayedStep);
+  useEffect(() => {
+    displayedStepRef.current = displayedStep;
+  }, [displayedStep]);
+
+  // Step-change orchestrator: fade-out → swap (invisible) → wait for
+  // blob to finish morphing → fade-in. The wait is a JS timer rather
+  // than a Reanimated callback so the timing works even when the new
+  // step happens to have the same natural height as the previous one.
+  //
+  // Phases (ms): 0–180 fade-out, 180–~520 layout + blob morph, 540–760
+  // fade-in. The 540ms delay matches fade-out (180) + a small layout
+  // buffer (~40) + the blob tween (320).
+  useEffect(() => {
+    if (step === displayedStepRef.current) return;
+    const nextStep = step;
+    let cancelled = false;
+    contentOpacity.value = withTiming(
+      0,
+      { duration: 180, easing: Easing.out(Easing.cubic) },
+      (finished) => {
+        if (!finished || cancelled) return;
+        runOnJS(setDisplayedStep)(nextStep);
+      },
+    );
+    const fadeInTimer = setTimeout(() => {
+      if (cancelled) return;
+      contentOpacity.value = withTiming(1, {
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+      });
+    }, 540);
+    return () => {
+      cancelled = true;
+      clearTimeout(fadeInTimer);
+    };
+  }, [step, contentOpacity]);
+
+  const stepContentStyle = useAnimatedStyle(() => ({
+    opacity: contentOpacity.value,
+  }));
+
+  // Reset the wizard *after* the close animation finishes, so the user
+  // doesn't see the steps snapping back while the sheet is shrinking.
+  useEffect(() => {
+    if (open) return;
+    const t = setTimeout(() => {
+      setStep(1);
+      setDisplayedStep(1);
+      setMode(null);
+      setTemplateId(null);
+      contentOpacity.value = 1;
+    }, ANIM_DURATION_MS + 80);
+    return () => clearTimeout(t);
+  }, [open, contentOpacity]);
+
+  // Mount the heavy overlay (backdrop + Skia canvas + content) only when
+  // the sheet is actually opening or open. When fully closed we leave
+  // *only* the FAB rendered — without this, the absolute-fill wrapper
+  // around the Skia canvas was capturing all touches on Android (Fabric
+  // doesn't propagate `pointerEvents="box-none"` reliably from the JS
+  // side to certain host components, so even with `none` set everywhere
+  // the canvas would block the screen).
+  const [overlayMounted, setOverlayMounted] = useState(false);
+  useEffect(() => {
+    if (open) {
+      setOverlayMounted(true);
+      return;
+    }
+    const t = setTimeout(
+      () => setOverlayMounted(false),
+      ANIM_DURATION_MS + 100,
+    );
+    return () => clearTimeout(t);
+  }, [open]);
+
+  // ─── data ────────────────────────────────────────────────────────
+  const { templates, isLoading: isLoadingTemplates } = useStoryTemplates();
   const defaultLanguage = ENABLED_LANGUAGES[0];
+
   const visibleTemplates = useMemo(
     () =>
       templates.filter(
@@ -132,18 +231,54 @@ export function WonderSheet({ open, onClose, onToggle }: WonderSheetProps) {
     [templates, defaultLanguage],
   );
 
-  // Recompute the FAB's absolute screen position from the same geometry
-  // the tab-bar uses, so the blob's circle anchor stays glued to the
-  // button regardless of safe-area / orientation changes.
+  const selectedTemplate = useMemo(
+    () => templates.find((t) => t.id === templateId) ?? null,
+    [templates, templateId],
+  );
+
+  // Storytellers are language-scoped. Follow the selected template's
+  // language; fall back to the default when no template is chosen yet.
+  const storytellerLanguage = selectedTemplate?.language ?? defaultLanguage;
+  const { storytellers, isLoading: isLoadingStorytellers } =
+    useStorytellers(storytellerLanguage);
+
+  // ─── geometry ────────────────────────────────────────────────────
   const paddingBottom = tabBarPaddingBottom(insets.bottom);
   const buttonCenterX = width / 2;
   const buttonCenterY = height - paddingBottom - TAB_BAR_HEIGHT;
   const buttonRadius = CREATE_BUTTON_RADIUS;
-  // Mirror the tab-bar's `createButtonBottom` calc so the FAB renders
-  // at the exact same y as it used to inside the tab-bar — but now from
-  // here, on top of the Skia blob.
   const fabBottom = paddingBottom + TAB_BAR_HEIGHT - buttonRadius;
+  const sheetWidth = width - SHEET_INSET * 2;
+  const sheetMaxHeight = height * SHEET_MAX_HEIGHT_RATIO;
+  // Inner scroll area in steps 2/3 needs an explicit max so they
+  // become scrollable rather than pushing the container past the
+  // sheet's max. Header + breathing room ≈ 100 px.
+  const stepScrollMaxHeight = sheetMaxHeight - 100;
 
+  // Content's *real* height after layout, driven into the shader so the
+  // blob hugs whatever the current step renders. Capped at the sheet's
+  // max so a long list still scrolls instead of overgrowing the blob.
+  const [measuredHeight, setMeasuredHeight] = useState(0);
+  const heightShared = useSharedValue(0);
+  useEffect(() => {
+    if (measuredHeight <= 0) return;
+    heightShared.value = withTiming(Math.min(measuredHeight, sheetMaxHeight), {
+      duration: 320,
+      easing: Easing.bezier(0.4, 0, 0.1, 1),
+    });
+  }, [measuredHeight, sheetMaxHeight, heightShared]);
+
+  const handleContainerLayout = useCallback(
+    (e: LayoutChangeEvent) => {
+      const h = e.nativeEvent.layout.height;
+      if (h > 0 && Math.abs(h - measuredHeight) > 1) {
+        setMeasuredHeight(h);
+      }
+    },
+    [measuredHeight],
+  );
+
+  // ─── open/close + FAB morph ──────────────────────────────────────
   const progress = useSharedValue(0);
   useEffect(() => {
     progress.value = withTiming(open ? 1 : 0, {
@@ -151,8 +286,6 @@ export function WonderSheet({ open, onClose, onToggle }: WonderSheetProps) {
     });
   }, [open, progress]);
 
-  // Drive the + → × morph from the same `open` so it stays in sync with
-  // the blob's grow/shrink.
   const fabRotation = useSharedValue(0);
   useEffect(() => {
     fabRotation.value = withTiming(open ? 45 : 0, {
@@ -171,9 +304,7 @@ export function WonderSheet({ open, onClose, onToggle }: WonderSheetProps) {
     onToggle();
   };
 
-  const sheetWidth = width - SHEET_INSET * 2;
-  const sheetMaxHeight = height * SHEET_MAX_HEIGHT_RATIO;
-  // RGBA, 0..1 — must be a vec4 the shader can read directly.
+  // ─── shader uniforms ────────────────────────────────────────────
   const sheetColor =
     scheme === 'dark'
       ? ([0.13, 0.13, 0.16, 1] as [number, number, number, number])
@@ -185,7 +316,10 @@ export function WonderSheet({ open, onClose, onToggle }: WonderSheetProps) {
     u_buttonCenter: [buttonCenterX, buttonCenterY] as [number, number],
     u_buttonRadius: buttonRadius,
     u_sheetWidth: sheetWidth,
-    u_sheetHeight: sheetMaxHeight,
+    // Blob's rectangle height comes from the live content measurement;
+    // before the first layout fires we fall back to the max so the
+    // first open frame doesn't draw a too-small bubble.
+    u_sheetHeight: heightShared.value > 0 ? heightShared.value : sheetMaxHeight,
     u_sheetCornerRadius: SHEET_CORNER_RADIUS,
     u_smoothK: BLOB_SMOOTH_K,
     u_color: sheetColor,
@@ -195,8 +329,6 @@ export function WonderSheet({ open, onClose, onToggle }: WonderSheetProps) {
     opacity: progress.value * 0.45,
   }));
 
-  // Fade the content in only once the blob is mostly grown, so text
-  // doesn't pop into a half-formed shape.
   const contentStyle = useAnimatedStyle(() => {
     const t = Math.max((progress.value - 0.55) / 0.45, 0);
     return {
@@ -205,147 +337,313 @@ export function WonderSheet({ open, onClose, onToggle }: WonderSheetProps) {
     };
   });
 
-  const handlePick = (template: StoryTemplate) => {
+  // ─── selection handlers ─────────────────────────────────────────
+  const handlePickMode = (m: BookMode) => {
+    Haptics.selectionAsync().catch(() => undefined);
+    setMode(m);
+    setStep(2);
+  };
+
+  const handlePickTemplate = (t: StoryTemplate) => {
+    Haptics.selectionAsync().catch(() => undefined);
+    setTemplateId(t.id);
+    setStep(3);
+  };
+
+  const handlePickStoryteller = (s: Storyteller) => {
+    if (!mode || !templateId) return;
+    Haptics.selectionAsync().catch(() => undefined);
+    const params = new URLSearchParams({
+      mode,
+      templateId,
+      storytellerId: s.id,
+    });
     onClose();
-    router.push(`/imagine?templateId=${template.id}` as Href);
+    router.push(`/imagine?${params.toString()}` as Href);
+  };
+
+  const handleBack = () => {
+    if (step <= 1) return;
+    Haptics.selectionAsync().catch(() => undefined);
+    setStep((s) => (s - 1) as Step);
   };
 
   return (
-    // box-none so taps pass through to the underlying tab bar / screens
-    // when the sheet is closed; the elements below opt in to receiving
-    // touches via their own `pointerEvents`.
-    <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-      {/* Dim backdrop (visual only) + a separate Pressable that
-          intercepts taps to close. Both are gated on `open`. */}
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          StyleSheet.absoluteFill,
-          backdropStyle,
-          { backgroundColor: '#000' },
-        ]}
-      />
-      {open ? (
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={onClose}
-          accessibilityLabel="Close adventure sheet"
-        />
+    <>
+      {/* Heavy overlay — backdrop + Skia blob + content — only mounts
+          while the sheet is active. When idle the wrapper is gone so
+          its absolute-fill geometry can't intercept touches on Android,
+          where `pointerEvents="box-none"` propagation through Fabric to
+          Skia's `<Canvas>` is unreliable. The FAB rendered below stays
+          mounted at all times. */}
+      {overlayMounted ? (
+        <>
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              StyleSheet.absoluteFill,
+              backdropStyle,
+              { backgroundColor: '#000', pointerEvents: 'none' },
+            ]}
+          />
+
+          {open ? (
+            <Pressable
+              style={StyleSheet.absoluteFill}
+              onPress={onClose}
+              accessibilityLabel="Close adventure sheet"
+            />
+          ) : null}
+
+          <View
+            pointerEvents="none"
+            style={[StyleSheet.absoluteFill, { pointerEvents: 'none' }]}
+          >
+            <Canvas
+              style={[StyleSheet.absoluteFill, { pointerEvents: 'none' }]}
+              pointerEvents="none"
+            >
+              <Fill>
+                <Shader source={BLOB_SHADER} uniforms={uniforms} />
+              </Fill>
+            </Canvas>
+          </View>
+
+          <Animated.View
+            onLayout={handleContainerLayout}
+            pointerEvents={open ? 'auto' : 'none'}
+            style={[
+              {
+                position: 'absolute',
+                left: SHEET_INSET + 16,
+                right: SHEET_INSET + 16,
+                // Bottom edge sits on top of the FAB — matches the
+                // shader's rect bottom (`u_buttonCenter.y - u_buttonRadius`)
+                // so the container's outline aligns with the blob's
+                // top edge instead of poking through it. Internal
+                // padding pushes content inward off the blob's rim.
+                bottom: height - (buttonCenterY - buttonRadius),
+                maxHeight: sheetMaxHeight,
+                paddingTop: 28,
+                paddingBottom: 28,
+                paddingHorizontal: 20,
+                pointerEvents: open ? 'auto' : 'none',
+              },
+              contentStyle,
+            ]}
+          >
+            <SheetHeader
+              step={displayedStep}
+              onBack={step > 1 ? handleBack : undefined}
+            />
+
+            {/* The whole step block fades via `stepContentStyle`.
+                `displayedStep` lags behind `step` during the swap, so
+                what gets rendered here changes only when content is at
+                opacity 0 (in-flight transition). */}
+            <Animated.View style={stepContentStyle}>
+              {displayedStep === 1 ? (
+                <ModeStep selected={mode} onPick={handlePickMode} />
+              ) : null}
+              {displayedStep === 2 ? (
+                <TemplateStep
+                  templates={visibleTemplates}
+                  isLoading={isLoadingTemplates}
+                  onPick={handlePickTemplate}
+                  onClose={onClose}
+                  maxHeight={stepScrollMaxHeight}
+                />
+              ) : null}
+              {displayedStep === 3 ? (
+                <StorytellerStep
+                  storytellers={storytellers}
+                  isLoading={isLoadingStorytellers}
+                  onPick={handlePickStoryteller}
+                  maxHeight={stepScrollMaxHeight}
+                />
+              ) : null}
+            </Animated.View>
+          </Animated.View>
+        </>
       ) : null}
 
-      <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Fill>
-          <Shader source={BLOB_SHADER} uniforms={uniforms} />
-        </Fill>
-      </Canvas>
-
-      <Animated.View
-        pointerEvents={open ? 'auto' : 'none'}
-        style={[
-          {
-            position: 'absolute',
-            left: SHEET_INSET + 16,
-            right: SHEET_INSET + 16,
-            top: Math.max(insets.top + 12, buttonCenterY - sheetMaxHeight + 28),
-            bottom:
-              height - (buttonCenterY - buttonRadius) + SHEET_CORNER_RADIUS / 2,
-          },
-          contentStyle,
-        ]}
-      >
-        <ThemedText
-          className="text-2xl font-black text-center mb-4 text-black dark:text-white"
-          numberOfLines={1}
-        >
-          New adventure
-        </ThemedText>
-
-        {isLoading ? (
-          <LoadingState />
-        ) : visibleTemplates.length === 0 ? (
-          <EmptyState onClose={onClose} />
-        ) : (
-          <TemplateList templates={visibleTemplates} onPick={handlePick} />
-        )}
-      </Animated.View>
-
-      {/* The FAB has moved out of the tab bar so it can sit visually
-          ON TOP of the blob — otherwise the white blob would cover the
-          purple button. Tap toggles the sheet via the host context. */}
+      {/* FAB is always mounted as its own absolute element. When the
+          sheet is closed it's the ONLY thing this component contributes
+          to the view tree — taps outside the FAB's 56px circle fall
+          through to whatever sits below `<WonderSheetHost>` (the
+          screens, dev FAB, etc.), unblocked by any absolute-fill wrapper. */}
       <Pressable
         onPress={handleFabPress}
         accessibilityRole="button"
         accessibilityLabel={open ? 'Close adventure sheet' : 'New story'}
         accessibilityState={{ expanded: open }}
-        style={[fabStyles.fab, { bottom: fabBottom }]}
+        style={[styles.fab, { bottom: fabBottom }]}
       >
         <Animated.View style={fabIconStyle}>
           <MaterialCommunityIcons name="plus" color="#ffffff" size={30} />
         </Animated.View>
       </Pressable>
-    </View>
+    </>
   );
 }
 
-const fabStyles = StyleSheet.create({
-  fab: {
-    position: 'absolute',
-    alignSelf: 'center',
-    width: CREATE_BUTTON_RADIUS * 2,
-    height: CREATE_BUTTON_RADIUS * 2,
-    borderRadius: CREATE_BUTTON_RADIUS,
-    backgroundColor: '#9333ea',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 4,
-    borderColor: '#ffffff',
-    shadowColor: '#7c3aed',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    zIndex: 10,
-    elevation: 12,
-  },
-});
+// ────────────────────────────────────────────────────────────────────
+// Sub-components
+// ────────────────────────────────────────────────────────────────────
 
-function LoadingState() {
-  return (
-    <ThemedText className="text-center text-gray-500 dark:text-zinc-400">
-      Loading templates…
-    </ThemedText>
-  );
-}
-
-function EmptyState({ onClose }: { onClose: () => void }) {
-  return (
-    <View className="items-center px-6">
-      <ThemedText className="text-base text-gray-500 dark:text-zinc-400 text-center mb-4">
-        You don't have any templates yet.
-      </ThemedText>
-      <Pressable
-        onPress={() => {
-          onClose();
-          router.push('/settings/templates' as Href);
-        }}
-        className="rounded-2xl bg-purple-600 px-5 py-3"
-      >
-        <ThemedText className="text-white font-semibold">
-          Create a template
-        </ThemedText>
-      </Pressable>
-    </View>
-  );
-}
-
-function TemplateList({
-  templates,
-  onPick,
+function SheetHeader({
+  step,
+  onBack,
 }: {
-  templates: StoryTemplate[];
-  onPick: (t: StoryTemplate) => void;
+  step: Step;
+  onBack: (() => void) | undefined;
 }) {
   return (
+    <View style={styles.header}>
+      <View style={styles.headerSide}>
+        {onBack ? (
+          <Pressable
+            onPress={onBack}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+            hitSlop={12}
+            style={styles.backButton}
+          >
+            <MaterialCommunityIcons
+              name="chevron-left"
+              size={22}
+              color={undefined}
+            />
+          </Pressable>
+        ) : null}
+      </View>
+      <ThemedText
+        className="text-xl font-black text-black dark:text-white"
+        numberOfLines={1}
+      >
+        {STEP_TITLES[step]}
+      </ThemedText>
+      {/* Spacer matching the back button slot so the title stays
+          centred regardless of whether the back button is shown. */}
+      <View style={styles.headerSide} />
+    </View>
+  );
+}
+
+function ModeStep({
+  selected,
+  onPick,
+}: {
+  selected: BookMode | null;
+  onPick: (mode: BookMode) => void;
+}) {
+  return (
+    <View className="flex-1 items-center justify-center">
+      <View className="flex-row gap-4">
+        <ModeCard
+          icon="book-open-page-variant-outline"
+          label="Classic"
+          description="A linear story read straight through"
+          selected={selected === 'classic'}
+          onPress={() => onPick('classic')}
+        />
+        <ModeCard
+          icon="puzzle-outline"
+          label="Interactive"
+          description="Pick what happens next at each page"
+          selected={selected === 'interactive'}
+          onPress={() => onPick('interactive')}
+        />
+      </View>
+    </View>
+  );
+}
+
+function ModeCard({
+  icon,
+  label,
+  description,
+  selected,
+  onPress,
+}: {
+  icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+  label: string;
+  description: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected }}
+      className={cn(
+        'w-36 h-36 rounded-3xl items-center justify-center p-3',
+        'bg-gray-50 dark:bg-zinc-800',
+        selected && 'bg-purple-100 dark:bg-purple-900/40',
+      )}
+    >
+      <MaterialCommunityIcons
+        name={icon}
+        size={36}
+        color={selected ? '#7c3aed' : '#52525b'}
+      />
+      <ThemedText className="text-base font-bold mt-2 text-black dark:text-white">
+        {label}
+      </ThemedText>
+      <ThemedText
+        className="text-xs text-gray-500 dark:text-zinc-400 mt-1 text-center"
+        numberOfLines={2}
+      >
+        {description}
+      </ThemedText>
+    </Pressable>
+  );
+}
+
+function TemplateStep({
+  templates,
+  isLoading,
+  onPick,
+  onClose,
+  maxHeight,
+}: {
+  templates: StoryTemplate[];
+  isLoading: boolean;
+  onPick: (t: StoryTemplate) => void;
+  onClose: () => void;
+  /** Maximum height for the inner scrollable list (px). */
+  maxHeight: number;
+}) {
+  if (isLoading) return <LoadingState message="Loading templates…" />;
+  if (templates.length === 0) {
+    return (
+      <View className="items-center px-6">
+        <ThemedText className="text-base text-gray-500 dark:text-zinc-400 text-center mb-4">
+          You don't have any templates yet.
+        </ThemedText>
+        <Pressable
+          onPress={() => {
+            onClose();
+            router.push('/settings/templates' as Href);
+          }}
+          className="rounded-2xl bg-purple-600 px-5 py-3"
+        >
+          <ThemedText className="text-white font-semibold">
+            Create a template
+          </ThemedText>
+        </Pressable>
+      </View>
+    );
+  }
+  return (
     <ScrollView
+      // ScrollView with an explicit `maxHeight` takes its content height
+      // when small (so the sheet hugs short lists) and caps + scrolls
+      // when long. Without it, ScrollView's natural height is unbounded
+      // and the sheet would always render at its absolute max.
+      style={{ maxHeight }}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{ paddingBottom: 12 }}
     >
@@ -374,3 +672,98 @@ function TemplateList({
     </ScrollView>
   );
 }
+
+function StorytellerStep({
+  storytellers,
+  isLoading,
+  onPick,
+  maxHeight,
+}: {
+  storytellers: Storyteller[];
+  isLoading: boolean;
+  onPick: (s: Storyteller) => void;
+  maxHeight: number;
+}) {
+  if (isLoading) return <LoadingState message="Loading narrators…" />;
+  if (storytellers.length === 0) {
+    return (
+      <ThemedText className="text-center text-gray-500 dark:text-zinc-400">
+        No narrators available for this language.
+      </ThemedText>
+    );
+  }
+  return (
+    <ScrollView
+      style={{ maxHeight }}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: 12 }}
+    >
+      {storytellers.map((s) => (
+        <Pressable
+          key={s.id}
+          onPress={() => onPick(s)}
+          className="bg-gray-50 dark:bg-zinc-800 rounded-2xl p-3 mb-2 flex-row items-center"
+        >
+          <Image
+            source={{ uri: s.imageUrl }}
+            style={{ width: 48, height: 48, borderRadius: 24 }}
+            contentFit="cover"
+          />
+          <ThemedText className="text-base font-bold text-black dark:text-white ml-3 flex-1">
+            {s.name}
+          </ThemedText>
+        </Pressable>
+      ))}
+    </ScrollView>
+  );
+}
+
+function LoadingState({ message }: { message: string }) {
+  return (
+    <ThemedText className="text-center text-gray-500 dark:text-zinc-400">
+      {message}
+    </ThemedText>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────
+
+const styles = StyleSheet.create({
+  fab: {
+    position: 'absolute',
+    alignSelf: 'center',
+    width: CREATE_BUTTON_RADIUS * 2,
+    height: CREATE_BUTTON_RADIUS * 2,
+    borderRadius: CREATE_BUTTON_RADIUS,
+    backgroundColor: '#9333ea',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 4,
+    borderColor: '#ffffff',
+    shadowColor: '#7c3aed',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    zIndex: 10,
+    elevation: 12,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  headerSide: {
+    width: 36,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  backButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.06)',
+  },
+});

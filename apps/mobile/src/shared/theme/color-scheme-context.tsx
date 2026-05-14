@@ -158,29 +158,38 @@ export function ColorSchemeProvider({ children }: Props) {
           {children}
         </ColorSchemeReactContext.Provider>
       </View>
-      {/* Overlay canvas — sits above everything and is pointer-event
-          transparent so users can keep interacting while it animates. */}
-      <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
-        <SkiaImage
-          image={state.overlay1}
-          x={0}
-          y={0}
-          width={width}
-          height={height}
-        />
-        {state.overlay2 && (
-          <Circle c={circle} r={r}>
-            <ImageShader
-              image={state.overlay2}
-              x={0}
-              y={0}
-              width={width}
-              height={height}
-              fit="cover"
-            />
-          </Circle>
-        )}
-      </Canvas>
+      {/* Overlay canvas — only mounted *during* the snapshot-driven
+          theme transition. RN 0.81 Fabric on Android doesn't reliably
+          propagate the JSX `pointerEvents="none"` prop to Skia's
+          `<Canvas>` host view, so leaving it mounted at root would
+          capture every touch across the app and the user couldn't tap
+          anything. Mount it only when there's an overlay to draw. */}
+      {state.overlay1 ? (
+        <Canvas
+          style={[StyleSheet.absoluteFill, { pointerEvents: 'none' }]}
+          pointerEvents="none"
+        >
+          <SkiaImage
+            image={state.overlay1}
+            x={0}
+            y={0}
+            width={width}
+            height={height}
+          />
+          {state.overlay2 && (
+            <Circle c={circle} r={r}>
+              <ImageShader
+                image={state.overlay2}
+                x={0}
+                y={0}
+                width={width}
+                height={height}
+                fit="cover"
+              />
+            </Circle>
+          )}
+        </Canvas>
+      ) : null}
     </View>
   );
 }

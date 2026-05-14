@@ -39,26 +39,36 @@ export default function ImagineScreen() {
     useStorytellers(language);
   const { templates, isLoading: isLoadingTemplates } = useStoryTemplates();
 
-  const [mode, setMode] = useState<BookMode>('classic');
-  const [storyteller, setStoryteller] = useState<string | null>(null);
+  const {
+    mode: modeParam,
+    templateId: templateIdParam,
+    storytellerId: storytellerIdParam,
+  } = useLocalSearchParams<{
+    mode?: BookMode;
+    templateId?: string;
+    storytellerId?: string;
+  }>();
+  const [mode, setMode] = useState<BookMode>(modeParam ?? 'classic');
+  const [storyteller, setStoryteller] = useState<string | null>(
+    storytellerIdParam ?? null,
+  );
   const [childProfileId, setChildProfileId] = useState<string | null>(null);
   const [theme, setTheme] = useState('');
-  const { templateId: templateIdParam } = useLocalSearchParams<{
-    templateId?: string;
-  }>();
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(
     templateIdParam ?? null,
   );
 
-  // Sync the deep-link param into local state when arriving from the
-  // tab-bar sheet — and adopt the template's language if it sets one so
-  // the user lands on the right `visibleTemplates` filter.
+  // Sync deep-link params into local state when arriving from the
+  // tab-bar wizard — pre-select mode/template/storyteller and adopt the
+  // template's language so storytellers list lands on the right filter.
   useEffect(() => {
+    if (modeParam) setMode(modeParam);
+    if (storytellerIdParam) setStoryteller(storytellerIdParam);
     if (!templateIdParam) return;
     setSelectedTemplateId(templateIdParam);
     const tpl = templates.find((t) => t.id === templateIdParam);
     if (tpl?.language) setLanguage(tpl.language);
-  }, [templateIdParam, templates]);
+  }, [modeParam, storytellerIdParam, templateIdParam, templates]);
   const [isGenerating, setIsGenerating] = useState(false);
 
   const visibleTemplates = useMemo(
