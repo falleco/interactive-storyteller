@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import Animated, {
   Easing,
+  interpolateColor,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -9,6 +10,7 @@ import {
   ThemedText,
   type ThemedTextProps,
 } from '~/shared/components/themed-text';
+import { useColorScheme } from '~/shared/hooks/use-color-scheme';
 
 interface NarratedTextProps extends Omit<ThemedTextProps, 'children'> {
   text: string;
@@ -60,10 +62,12 @@ function tokenize(text: string): Token[] {
 /**
  * Karaoke-style narration highlight. Default text is dim; as the audio
  * progresses each word brightens smoothly when the playhead approaches.
- * The smoothness has two ingredients:
- *  - a fade zone (~14 chars) so neighbours blend rather than snap, and
- *  - a Reanimated tween between status pushes so the visible cursor
- *    glides at 60fps instead of stepping at ~4Hz.
+ *
+ * Each word animates **colour** (not opacity) because Android's inline
+ * `<Text>` doesn't honour per-span `opacity` reliably — RN merges nested
+ * inline texts into a single text run and Reanimated's animated style
+ * gets discarded. Animating the `color` channel works on both platforms
+ * since inline text always picks up its own colour even when nested.
  */
 export function NarratedText({
   text,
@@ -72,8 +76,15 @@ export function NarratedText({
   fadeChars = DEFAULT_FADE_CHARS,
   ...themedTextProps
 }: NarratedTextProps) {
+  const scheme = useColorScheme();
   const tokens = useMemo(() => tokenize(text), [text]);
   const totalChars = useMemo(() => Math.max(text.length, 1), [text.length]);
+
+  const baseColor = scheme === 'dark' ? '#ffffff' : '#000000';
+  const dimColor =
+    scheme === 'dark'
+      ? `rgba(255, 255, 255, ${dimOpacity})`
+      : `rgba(0, 0, 0, ${dimOpacity})`;
 
   const cursorChars = useSharedValue(progress * totalChars);
 
@@ -92,7 +103,8 @@ export function NarratedText({
           key={`tok-${i}`}
           token={tok}
           cursor={cursorChars}
-          dimOpacity={dimOpacity}
+          baseColor={baseColor}
+          dimColor={dimColor}
           fadeChars={fadeChars}
         />
       ))}
@@ -103,28 +115,36 @@ export function NarratedText({
 interface NarratedWordProps {
   token: Token;
   cursor: ReturnType<typeof useSharedValue<number>>;
-  dimOpacity: number;
+  baseColor: string;
+  dimColor: string;
   fadeChars: number;
 }
 
 function NarratedWord({
   token,
   cursor,
-  dimOpacity,
+  baseColor,
+  dimColor,
   fadeChars,
 }: NarratedWordProps) {
   const animatedStyle = useAnimatedStyle(() => {
     const c = cursor.value;
-    if (c >= token.end) return { opacity: 1 };
-    // Start fading the word in `fadeChars` ahead of its actual start so
-    // upcoming words gently lighten just before the narrator gets to
-    // them.
-    const fadeStart = token.start - fadeChars;
-    if (c <= fadeStart) return { opacity: dimOpacity };
-    const span = token.end - fadeStart;
-    const t = Math.min(Math.max((c - fadeStart) / span, 0), 1);
-    return { opacity: dimOpacity + (1 - dimOpacity) * t };
-  }, [dimOpacity, fadeChars, token.end, token.start]);
+    let t: number;
+    if (c >= token.end) {
+      t = 1;
+    } else {
+      const fadeStart = token.start - fadeChars;
+      if (c <= fadeStart) {
+        t = 0;
+      } else {
+        const span = token.end - fadeStart;
+        t = Math.min(Math.max((c - fadeStart) / span, 0), 1);
+      }
+    }
+    return {
+      color: interpolateColor(t, [0, 1], [dimColor, baseColor]),
+    };
+  }, [baseColor, dimColor, fadeChars, token.end, token.start]);
 
   return <Animated.Text style={animatedStyle}>{token.value}</Animated.Text>;
 }

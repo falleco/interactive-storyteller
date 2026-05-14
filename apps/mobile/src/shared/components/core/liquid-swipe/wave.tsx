@@ -1,21 +1,13 @@
 import MaskedView from '@react-native-masked-view/masked-view';
 import type { ReactNode } from 'react';
-import {
-  type ColorValue,
-  Dimensions,
-  Platform,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { Dimensions, StyleSheet } from 'react-native';
 import Animated, {
   Extrapolation,
   interpolate,
   type SharedValue,
   useAnimatedProps,
-  useAnimatedStyle,
   useDerivedValue,
   withSpring,
-  withTiming,
 } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 import type { SharedVector } from './utils';
@@ -42,13 +34,6 @@ interface WaveProps {
   position: SharedVector;
   children: ReactNode;
   isTransitioning: SharedValue<boolean>;
-  /**
-   * Solid fallback colour painted underneath the masked content. Used as the
-   * paint colour of the SVG path on Android (where we don't mask via
-   * `MaskedView`) and ignored visually on iOS. Pick something close to the
-   * adjacent slide's background so the seam doesn't flash.
-   */
-  androidFallbackFill?: ColorValue;
 }
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
@@ -79,7 +64,6 @@ export function Wave({
   position: { x, y },
   children,
   isTransitioning,
-  androidFallbackFill = 'black',
 }: WaveProps) {
   // Radius of the wave's bulge — capped at half the screen width so we
   // never blow up into a full circle.
@@ -135,6 +119,10 @@ export function Wave({
     };
   });
 
+  // Pure-black fill is what `MaskedView` interprets as "visible" — the
+  // black-shaped area lets the wrapped content show through, everything
+  // outside is hidden. Same semantics on iOS and Android with
+  // `@react-native-masked-view/masked-view` 0.3.x.
   const maskElement = (
     <Svg
       style={[
@@ -146,38 +134,9 @@ export function Wave({
         },
       ]}
     >
-      <AnimatedPath
-        fill={Platform.OS === 'android' ? androidFallbackFill : 'black'}
-        animatedProps={animatedProps}
-      />
+      <AnimatedPath fill="black" animatedProps={animatedProps} />
     </Svg>
   );
-
-  // MaskedView is a no-go on Android (slow + flickery on the new arch)
-  // so we approximate the effect there by translating the content sideways
-  // by the same ledge offset, which keeps the seam aligned with the wave.
-  const androidStyle = useAnimatedStyle(() => ({
-    transform: [
-      {
-        translateX: isTransitioning.value
-          ? withTiming(0)
-          : side === WaveSide.RIGHT
-            ? WIDTH - ledge.value
-            : -WIDTH + ledge.value,
-      },
-    ],
-  }));
-
-  if (Platform.OS === 'android') {
-    return (
-      <View style={StyleSheet.absoluteFill}>
-        {maskElement}
-        <Animated.View style={[StyleSheet.absoluteFill, androidStyle]}>
-          {children}
-        </Animated.View>
-      </View>
-    );
-  }
 
   return (
     <MaskedView style={StyleSheet.absoluteFill} maskElement={maskElement}>

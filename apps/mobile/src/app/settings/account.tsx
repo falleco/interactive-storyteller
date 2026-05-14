@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Platform, ScrollView, View } from 'react-native';
+import { Alert, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ModalHeader } from '~/features/settings';
 import {
@@ -177,20 +177,21 @@ function SignedOutView({
           </ThemedText>
         </FlatButton>
 
-        {Platform.OS === 'ios' && (
-          <FlatButton
-            size="lg"
-            className="bg-black"
-            isDisabled={pendingProvider !== null}
-            onPress={onApple}
-          >
-            <ThemedText className="text-base font-semibold text-white">
-              {pendingProvider === 'apple'
-                ? 'Opening Apple…'
-                : ' Continue with Apple'}
-            </ThemedText>
-          </FlatButton>
-        )}
+        {/* Apple button shown on both platforms now — on iOS this uses
+            the native ASAuthorization flow, on Android it falls back to
+            Apple's OAuth web flow (configured via Better Auth). */}
+        <FlatButton
+          size="lg"
+          className="bg-black"
+          isDisabled={pendingProvider !== null}
+          onPress={onApple}
+        >
+          <ThemedText className="text-base font-semibold text-white">
+            {pendingProvider === 'apple'
+              ? 'Opening Apple…'
+              : 'Continue with Apple'}
+          </ThemedText>
+        </FlatButton>
       </View>
 
       <ThemedText className="mt-8 text-xs text-gray-500 dark:text-zinc-400 text-center px-6">

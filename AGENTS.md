@@ -120,6 +120,86 @@ const me = await api.get<MeResponse>('/me');
 
 `ApiError` thrown by the helper has `{ status, code, message, body }` — `code: 'ACCOUNT_INACTIVE'` and similar Better Auth error codes bubble through unchanged.
 
+## Mobile — Host-singleton pattern for full-screen overlays
+
+[apps/mobile/src/shared/components/core/sidebar-host.tsx](apps/mobile/src/shared/components/core/sidebar-host.tsx) and [apps/mobile/src/shared/components/core/wonder-sheet-host.tsx](apps/mobile/src/shared/components/core/wonder-sheet-host.tsx) are mounted near the root in [_layout.tsx](apps/mobile/src/app/_layout.tsx), wrapping `<Stack>`. Each exposes a context (`useSidebar`, `useWonderSheet`) with `open/close/toggle`. The singleton overlay sits as a sibling of `{children}` so it can extend full-screen — overlays mounted inside a tab-bar / screen container get clipped by the container's geometry. Same pattern for any future modal-ish UI that needs to escape its parent.
+
+Order in [_layout.tsx](apps/mobile/src/app/_layout.tsx): `SidebarHost > WonderSheetHost > Stack`. Reason: sheet should sit on top of the sidebar in z-order, but inside the theme-transition snapshot. `<DevMenuFab />` lives inside the WonderSheetHost children so it gets hidden by the wonder-sheet's overlay when open.
+
+## Mobile — Skia + Fabric + Android `pointerEvents` gotcha
+
+RN 0.81 + Fabric on Android does **not** reliably propagate the JSX `pointerEvents` prop to Skia's `<Canvas>` host view. A `<Canvas pointerEvents="none" style={StyleSheet.absoluteFill}>` left mounted at root absorbs every touch on the screen, making the whole app feel frozen. Two specific bugs we hit and fixed:
+
+1. **[color-scheme-context.tsx](apps/mobile/src/shared/theme/color-scheme-context.tsx)** — the theme-transition Canvas used to be mounted always. Fix: gate it on `state.overlay1 != null` so it only mounts during the transition.
+2. **[wonder-sheet.tsx](apps/mobile/src/shared/components/core/wonder-sheet.tsx)** — the sheet's Skia blob Canvas is now inside `{overlayMounted ? ... : null}` so it only mounts while the sheet is open or animating. When closed, only the FAB is rendered.
+
+Belt-and-suspenders: apply `pointerEvents="none"` both via JSX prop **and** via `style={{ pointerEvents: 'none' }}` (Fabric prefers the style form). Wrap the Canvas in a `<View pointerEvents="none">` for extra safety.
+
+## Mobile — WonderSheet (Skia blob FAB sheet)
+
+[apps/mobile/src/shared/components/core/wonder-sheet.tsx](apps/mobile/src/shared/components/core/wonder-sheet.tsx) — 3-step wizard (mode → template → narrator) inside a Reflectly-style Skia blob that grows from the tab-bar FAB. The FAB itself lives **inside** the WonderSheet (not the tab-bar), rendered after the Canvas so it sits visually on top of the blob (otherwise the white blob covers the purple button). The FAB is gated on `useSegments()[0] === '(tabs)'` so it only appears on tab screens.
+
+Container height is content-adaptive: `position: absolute; bottom: <FAB top>; maxHeight: sheetMaxHeight`, no `top`. `onLayout` measures real height → `heightShared` tweens (320ms) → shader's `u_sheetHeight` uses the shared value. Inside, list-based steps (templates / narrators) wrap their `<ScrollView>` with `style={{ maxHeight }}` so they scroll when content overflows but hug content when short.
+
+**Step transition pattern** (avoid the "new content rendered at old size" glitch): fade-out current → swap `displayedStep` while invisible → wait for blob morph → fade-in. Implementation uses a `displayedStepRef` shadow of the state because putting `displayedStep` in the orchestrator effect's deps causes the effect to re-run when `setDisplayedStep` fires inside the fade-out callback, cancelling the fade-in timer in the cleanup. Pattern documented inline in the file.
+
+**Storyteller identifier vs id**: the backend keys storytellers by `identifier` (slug), not the database `id`. Pass `storyteller.identifier` to `create({ storyteller: ... })`. Same in [imagine.tsx](apps/mobile/src/app/imagine.tsx).
+
+## Mobile — LiquidSwipe (book player page turn)
+
+[apps/mobile/src/shared/components/core/liquid-swipe/](apps/mobile/src/shared/components/core/liquid-swipe/) — port of William Candillon's Season 5 LiquidSwipe. Bezier wave mask (SDF-free, pure SVG path) over a `<MaskedView>` reveals the next/prev slide as the user pulls from the edge. `@react-native-masked-view/masked-view@0.3.x` works on both iOS and Android with new arch — the earlier translate-fallback for Android was needed pre-0.3 but no longer.
+
+Key files:
+- `wave.tsx` — SVG path animation via `useAnimatedProps`, wrapped in `MaskedView`. Cross-platform.
+- `slider.tsx` — `Gesture.Pan` with `activeOffsetX([-12, 12]) + failOffsetY([-16, 16])` so vertical scrolling inside slides (`<ScrollView>`) passes through. Also drives the idle "hint" pulse (wave bulges out + arrow springs right with `Easing.elastic` rubber-band) after `hintAfterMs` of inactivity.
+- `pull-button.tsx` — chevron riding the wave; receives `hintProgress` (for purple tint) and `iconOffset` (for the spring-back motion).
+
+In Reanimated 4, `withSpring` config dropped `restSpeedThreshold` / `restDisplacementThreshold` — `overshootClamping: true` is the replacement.
+
+## Mobile — BookPlayer audio + narrated text
+
+[apps/mobile/src/features/books/book-player.tsx](apps/mobile/src/features/books/book-player.tsx) drives a slide stack (cover, page, choices, loading-next, end) through the LiquidSwipe Slider. Audio handled by [use-book-audio.ts](apps/mobile/src/features/books/use-book-audio.ts).
+
+**Audio source-tracking gotchas** in `useBookAudio`:
+- When `source` changes, `expo-audio`'s status hook still returns the **previous** source's status for a render or two. That old status often shows `currentTime ≈ duration` (finished). Without gating, the status effect would fire `onComplete` immediately against the new source.
+- Fix: `trackedSource` (state, in-render reset) + `statusReadyFor` (state set only when status shows `isLoaded && duration > 0 && currentTime < 1`, i.e. the player has loaded the new clip). Returned `currentTime`/`duration` are gated on `statusReadyFor === trackedSource`.
+- Also: `didCompleteRef` is set to `true` (not `false`) at source change, so the stale "finished" status doesn't fire `onComplete` before the new audio starts.
+
+**In-render state reset trick** (used in BookPlayer for `audioFinished` and the WonderSheet wizard): instead of `useEffect(() => setX(false), [key])`, compare a `Ref`/track-state to a derived key during render and call setState if they differ. React detects setState-during-render, discards the current render, and re-renders with the new value before commit — avoids the one-frame stale window that a post-commit `useEffect` reset gives you.
+
+**NarratedText** ([narrated-text.tsx](apps/mobile/src/features/books/narrated-text.tsx)) animates **`color`**, not `opacity`. Android's inline `<Animated.Text>` inside another `<Text>` ignores per-span `opacity` (RN merges them into a single text run). Inline color **is** per-span, so animating between `dimColor` (`rgba(0,0,0,0.32)` / `rgba(255,255,255,0.32)`) and `baseColor` (black/white) via `interpolateColor` works on both platforms.
+
+## Mobile — Expo Router + Stack.Screen naming
+
+`<Stack.Screen name="...">` in the root `_layout.tsx` must match an actual route file path, not a folder. The warning `No route named "foo" exists in nested children` means the screen name doesn't resolve. For `apps/mobile/src/app/settings/index.tsx` → use `name="settings/index"`, not `name="settings"`. Same for `family/me`, `family/child/[id]`.
+
+`router.replace` vs `router.push`: `replace` swaps the current stack entry. When called from a tab screen (e.g. opening a book via the wonder-sheet from the Library tab), `replace` removes the tabs entry from the stack — back from the destination then has nothing to pop to and throws `GO_BACK was not handled`. Use `router.push` when starting from a tab; reserve `replace` for cases like form → result where the form shouldn't be in history.
+
+## Mobile — Pull-to-refresh on iOS
+
+Driving `<FlatList refreshing={isLoading}>` from a global "is the data loading" state breaks iOS's `UIRefreshControl`: when `isLoading` flips true → false from a non-pull source (focus refetch, mutation), the native control gets stuck visible until the user interacts. Fix: separate state for pull-only:
+
+```ts
+const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+const handlePullRefresh = useCallback(async () => {
+  setIsPullRefreshing(true);
+  try { await refresh(); } finally { setIsPullRefreshing(false); }
+}, [refresh]);
+// FlatList: refreshing={isPullRefreshing} onRefresh={handlePullRefresh}
+```
+
+See [(tabs)/index.tsx](apps/mobile/src/app/(tabs)/index.tsx).
+
+## Mobile — Networking from Android
+
+`localhost` on an Android device/emulator resolves to the device itself, not the dev machine. Three workarounds, in order of preference:
+
+1. **Leave `EXPO_PUBLIC_API_URL` unset** — `resolveApiBaseURL()` derives the LAN IP from `Constants.expoConfig.hostUri`. Works for iOS Simulator, Android emulator (on Apple Silicon hosts), and physical devices on the same Wi-Fi.
+2. **`adb reverse tcp:4000 tcp:4000`** — tunnels `localhost:4000` on the device to your Mac. Needs to be re-run after reconnecting/restarting ADB. Then `localhost:4000` in `.env` works.
+3. **Hardcode the LAN IP** in `.env` (e.g. `EXPO_PUBLIC_API_URL=http://192.168.x.x:4000`). Fragile across networks.
+
+The [base-url.ts](apps/mobile/src/shared/api/base-url.ts) helper has `console.log` hooks for the resolved URL, and [use-auth.tsx](apps/mobile/src/shared/hooks/use-auth.tsx) has a `probeApi` that hits `/api/auth/ok` before social sign-in so a "Network request failed" can be traced to reachability vs. the OAuth handshake.
+
 ## Mobile — Dev menu
 
 Floating draggable FAB in [apps/mobile/src/shared/dev/dev-menu-fab.tsx](apps/mobile/src/shared/dev/dev-menu-fab.tsx). Rendered in [_layout.tsx](apps/mobile/src/app/_layout.tsx) **inside `GestureHandlerRootView`** (gesture detector requires it). Hidden in production via `if (!__DEV__) return null`. Opens `/dev-menu` modal screen.
@@ -213,3 +293,8 @@ Mobile env (`apps/mobile/.env`):
 - `apps/mobile/src/shared/dev/dev-menu-fab.tsx` + `apps/mobile/src/app/dev-menu.tsx` — dev-only floating FAB
 - `apps/mobile/src/app/_layout.tsx` — must wrap children in `GestureHandlerRootView`
 - `apps/mobile/src/app/settings/account.tsx` — sign-in / profile screen plugged to `useAuth`
+- `apps/mobile/src/shared/components/core/sidebar-host.tsx` + `wonder-sheet-host.tsx` — root-mounted singleton overlays
+- `apps/mobile/src/shared/components/core/wonder-sheet.tsx` — Skia blob FAB sheet + 3-step wizard
+- `apps/mobile/src/shared/components/core/liquid-swipe/` — SVG-path-mask page-turn (wave, slider, pull-button)
+- `apps/mobile/src/features/books/book-player.tsx` + `use-book-audio.ts` + `narrated-text.tsx` — book reader with karaoke narration
+- `apps/mobile/src/shared/theme/color-scheme-context.tsx` — animated theme transition via Skia snapshot

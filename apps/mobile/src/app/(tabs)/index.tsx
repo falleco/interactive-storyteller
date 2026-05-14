@@ -1,7 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
 import { type Href, router, useFocusEffect } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Alert, FlatList, Pressable, View } from 'react-native';
 import {
   SafeAreaView,
@@ -14,7 +14,6 @@ import { useSidebar } from '~/shared/components/core/sidebar-host';
 import { ThemedText } from '~/shared/components/themed-text';
 import { useAuth } from '~/shared/hooks/use-auth';
 import { useThemeColor } from '~/shared/hooks/use-theme-color';
-import { cn } from '~/shared/lib/cn';
 import { useColorSchemeContext } from '~/shared/theme/color-scheme-context';
 
 export default function HomeTab() {
@@ -25,6 +24,21 @@ export default function HomeTab() {
   const { open: openSidebar } = useSidebar();
 
   const insets = useSafeAreaInsets();
+  // Separate state for the pull-to-refresh spinner so it only shows on
+  // user-initiated pulls. Driving `refreshing` from `isLoading` would
+  // also light up on focus-triggered background refetches, and on iOS
+  // the native `UIRefreshControl` gets stuck visible when it flips
+  // true → false without an actual pull gesture.
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+
+  const handlePullRefresh = useCallback(async () => {
+    setIsPullRefreshing(true);
+    try {
+      await refresh();
+    } finally {
+      setIsPullRefreshing(false);
+    }
+  }, [refresh]);
 
   // Refetch on focus — the wizard modal mounts its own useBooks instance, so
   // the create there doesn't reach this tab's state once we return.
@@ -134,8 +148,8 @@ export default function HomeTab() {
           }}
           data={books}
           keyExtractor={(b) => b.id}
-          refreshing={isLoading}
-          onRefresh={refresh}
+          refreshing={isPullRefreshing}
+          onRefresh={handlePullRefresh}
           numColumns={2}
           columnWrapperStyle={{ gap: 12 }}
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
@@ -258,37 +272,6 @@ function BookCard({
       >
         {book.title}
       </ThemedText>
-      <View
-        className={cn(
-          'mt-1 self-start px-2 py-0.5 rounded-full',
-          book.status === 'ready'
-            ? 'bg-emerald-100'
-            : book.status === 'generating'
-              ? 'bg-amber-100'
-              : book.status === 'failed'
-                ? 'bg-red-100'
-                : 'bg-gray-100',
-        )}
-      >
-        <ThemedText
-          className={cn(
-            'text-[10px] font-semibold',
-            book.status === 'ready'
-              ? 'text-emerald-900'
-              : book.status === 'generating'
-                ? 'text-amber-900'
-                : book.status === 'failed'
-                  ? 'text-red-900'
-                  : 'text-gray-700',
-          )}
-        >
-          {book.status === 'ready'
-            ? 'READY'
-            : book.status === 'generating'
-              ? 'GENERATING'
-              : book.status.toUpperCase()}
-        </ThemedText>
-      </View>
     </Pressable>
   );
 }

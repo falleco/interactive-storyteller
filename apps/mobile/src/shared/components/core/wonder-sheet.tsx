@@ -2,9 +2,11 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Canvas, Fill, Shader, Skia } from '@shopify/react-native-skia';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
-import { type Href, router } from 'expo-router';
+import { type Href, router, useSegments } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   type LayoutChangeEvent,
   Pressable,
   ScrollView,
@@ -21,7 +23,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { BookMode } from '~/features/books';
+import { type BookMode, useBooks } from '~/features/books';
 import {
   type StoryTemplate,
   useStoryTemplates,
@@ -125,6 +127,13 @@ export function WonderSheet({ open, onClose, onToggle }: WonderSheetProps) {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const scheme = useColorScheme();
+  // FAB pertences to the tab bar visually — it should only appear on
+  // screens where the tab bar is visible (i.e. inside the `(tabs)`
+  // group). On other screens (settings, book detail, modals, etc.) we
+  // hide it. The overlay itself only mounts when `open=true`, which is
+  // only reachable from the FAB, so gating just the FAB is enough.
+  const segments = useSegments();
+  const isOnTab = segments[0] === '(tabs)';
 
   // ─── wizard state ────────────────────────────────────────────────
   // `step` is what the user picked; `displayedStep` lags behind during
@@ -136,6 +145,8 @@ export function WonderSheet({ open, onClose, onToggle }: WonderSheetProps) {
   const [displayedStep, setDisplayedStep] = useState<Step>(1);
   const [mode, setMode] = useState<BookMode | null>(null);
   const [templateId, setTemplateId] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const { create } = useBooks();
 
   const contentOpacity = useSharedValue(1);
   // Ref shadow of `displayedStep` so the orchestrator effect can read
@@ -194,6 +205,7 @@ export function WonderSheet({ open, onClose, onToggle }: WonderSheetProps) {
       setDisplayedStep(1);
       setMode(null);
       setTemplateId(null);
+      setIsGenerating(false);
       contentOpacity.value = 1;
     }, ANIM_DURATION_MS + 80);
     return () => clearTimeout(t);
@@ -350,16 +362,31 @@ export function WonderSheet({ open, onClose, onToggle }: WonderSheetProps) {
     setStep(3);
   };
 
-  const handlePickStoryteller = (s: Storyteller) => {
-    if (!mode || !templateId) return;
+  const handlePickStoryteller = async (s: Storyteller) => {
+    if (!mode || !templateId || isGenerating) return;
     Haptics.selectionAsync().catch(() => undefined);
-    const params = new URLSearchParams({
-      mode,
-      templateId,
-      storytellerId: s.id,
-    });
-    onClose();
-    router.push(`/imagine?${params.toString()}` as Href);
+    setIsGenerating(true);
+    try {
+      const created = await create({
+        mode,
+        templateId,
+        // Backend keys storytellers by `identifier` (slug), not the
+        // database UUID — same as the imagine screen does.
+        storyteller: s.identifier,
+        language: storytellerLanguage,
+      });
+      onClose();
+      // `push` (not `replace`) so back from the book lands on the tab
+      // the user came from — `replace` would swap the tabs route out
+      // of the stack and leave no entry for the navigator to pop to.
+      router.push(`/book/${created.id}` as Href);
+    } catch (e) {
+      Alert.alert(
+        'Generation failed',
+        e instanceof Error ? e.message : 'Unknown error',
+      );
+      setIsGenerating(false);
+    }
   };
 
   const handleBack = () => {
@@ -434,55 +461,66 @@ export function WonderSheet({ open, onClose, onToggle }: WonderSheetProps) {
           >
             <SheetHeader
               step={displayedStep}
-              onBack={step > 1 ? handleBack : undefined}
+              onBack={step > 1 && !isGenerating ? handleBack : undefined}
             />
 
             {/* The whole step block fades via `stepContentStyle`.
                 `displayedStep` lags behind `step` during the swap, so
                 what gets rendered here changes only when content is at
-                opacity 0 (in-flight transition). */}
+                opacity 0 (in-flight transition). When the user has
+                picked a narrator we replace the list with a spinner
+                so it's clear something is happening while the AI
+                generates the cover/first page. */}
             <Animated.View style={stepContentStyle}>
-              {displayedStep === 1 ? (
-                <ModeStep selected={mode} onPick={handlePickMode} />
-              ) : null}
-              {displayedStep === 2 ? (
-                <TemplateStep
-                  templates={visibleTemplates}
-                  isLoading={isLoadingTemplates}
-                  onPick={handlePickTemplate}
-                  onClose={onClose}
-                  maxHeight={stepScrollMaxHeight}
-                />
-              ) : null}
-              {displayedStep === 3 ? (
-                <StorytellerStep
-                  storytellers={storytellers}
-                  isLoading={isLoadingStorytellers}
-                  onPick={handlePickStoryteller}
-                  maxHeight={stepScrollMaxHeight}
-                />
-              ) : null}
+              {isGenerating ? (
+                <GeneratingState />
+              ) : (
+                <>
+                  {displayedStep === 1 ? (
+                    <ModeStep selected={mode} onPick={handlePickMode} />
+                  ) : null}
+                  {displayedStep === 2 ? (
+                    <TemplateStep
+                      templates={visibleTemplates}
+                      isLoading={isLoadingTemplates}
+                      onPick={handlePickTemplate}
+                      onClose={onClose}
+                      maxHeight={stepScrollMaxHeight}
+                    />
+                  ) : null}
+                  {displayedStep === 3 ? (
+                    <StorytellerStep
+                      storytellers={storytellers}
+                      isLoading={isLoadingStorytellers}
+                      onPick={handlePickStoryteller}
+                      maxHeight={stepScrollMaxHeight}
+                    />
+                  ) : null}
+                </>
+              )}
             </Animated.View>
           </Animated.View>
         </>
       ) : null}
 
-      {/* FAB is always mounted as its own absolute element. When the
-          sheet is closed it's the ONLY thing this component contributes
-          to the view tree — taps outside the FAB's 56px circle fall
-          through to whatever sits below `<WonderSheetHost>` (the
-          screens, dev FAB, etc.), unblocked by any absolute-fill wrapper. */}
-      <Pressable
-        onPress={handleFabPress}
-        accessibilityRole="button"
-        accessibilityLabel={open ? 'Close adventure sheet' : 'New story'}
-        accessibilityState={{ expanded: open }}
-        style={[styles.fab, { bottom: fabBottom }]}
-      >
-        <Animated.View style={fabIconStyle}>
-          <MaterialCommunityIcons name="plus" color="#ffffff" size={30} />
-        </Animated.View>
-      </Pressable>
+      {/* FAB belongs to the tab bar visually — only mount it when the
+          tab bar itself is on screen. While the sheet is opening or
+          open we keep mounting it so the tap-to-close gesture and the
+          + → × morph stay reachable until the close animation finishes
+          (after which the overlay unmounts and `open` is false again). */}
+      {isOnTab || open ? (
+        <Pressable
+          onPress={handleFabPress}
+          accessibilityRole="button"
+          accessibilityLabel={open ? 'Close adventure sheet' : 'New story'}
+          accessibilityState={{ expanded: open }}
+          style={[styles.fab, { bottom: fabBottom }]}
+        >
+          <Animated.View style={fabIconStyle}>
+            <MaterialCommunityIcons name="plus" color="#ffffff" size={30} />
+          </Animated.View>
+        </Pressable>
+      ) : null}
     </>
   );
 }
@@ -723,6 +761,17 @@ function LoadingState({ message }: { message: string }) {
     <ThemedText className="text-center text-gray-500 dark:text-zinc-400">
       {message}
     </ThemedText>
+  );
+}
+
+function GeneratingState() {
+  return (
+    <View className="py-6 items-center gap-3">
+      <ActivityIndicator />
+      <ThemedText className="text-base text-gray-600 dark:text-zinc-300 text-center">
+        Imagining your adventure…
+      </ThemedText>
+    </View>
   );
 }
 

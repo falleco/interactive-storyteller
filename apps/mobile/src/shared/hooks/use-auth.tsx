@@ -8,7 +8,35 @@ import {
   useMemo,
 } from 'react';
 import { Platform } from 'react-native';
+import { resolveApiBaseURL } from '~/shared/api/base-url';
 import { authClient } from '~/shared/auth/auth-client';
+
+/**
+ * Probe the API root with a plain `fetch` before kicking off Better
+ * Auth's social flow — Better Auth's "network request failed" error
+ * doesn't include the URL it tried, so without this we can't tell if
+ * the issue is reachability vs. the OAuth handshake itself.
+ */
+async function probeApi(label: string) {
+  const baseURL = resolveApiBaseURL();
+  const probeUrl = `${baseURL}/api/auth/ok`;
+  console.log(`[auth/${label}] probing API at`, probeUrl);
+  try {
+    const started = Date.now();
+    const res = await fetch(probeUrl);
+    console.log(
+      `[auth/${label}] probe response:`,
+      res.status,
+      `(${Date.now() - started}ms)`,
+    );
+  } catch (e) {
+    console.error(
+      `[auth/${label}] probe FAILED — device cannot reach ${baseURL}.`,
+      'Check the .env / hostUri.',
+      e,
+    );
+  }
+}
 
 interface AuthUser {
   id: string;
@@ -52,21 +80,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const bearerToken = data?.session?.token ?? null;
 
   const signInWithGoogle = useCallback(async () => {
-    console.log('[auth] signInWithGoogle: calling signIn.social');
-    const { data, error } = await authClient.signIn.social({
-      provider: 'google',
-      callbackURL: 'wondertales://',
-    });
-    if (error) {
-      console.error('[auth] Google sign-in error:', error);
-      throw new Error(
-        error.message ?? `Google sign-in failed (status ${error.status})`,
-      );
+    console.log('[auth] signInWithGoogle: start, platform=', Platform.OS);
+    await probeApi('google');
+    try {
+      console.log('[auth] signInWithGoogle: calling signIn.social');
+      const { data, error } = await authClient.signIn.social({
+        provider: 'google',
+        callbackURL: 'wondertales://',
+      });
+      if (error) {
+        console.error(
+          '[auth] Google sign-in error (Better Auth):',
+          JSON.stringify(error, null, 2),
+        );
+        throw new Error(
+          error.message ?? `Google sign-in failed (status ${error.status})`,
+        );
+      }
+      console.log('[auth] signInWithGoogle: response', data);
+    } catch (e) {
+      // Catch + re-throw so we surface fetch failures from Better Auth's
+      // internals (which only show the generic "Network request failed").
+      console.error('[auth] signInWithGoogle: threw', {
+        name: e instanceof Error ? e.name : typeof e,
+        message: e instanceof Error ? e.message : String(e),
+        stack: e instanceof Error ? e.stack : undefined,
+      });
+      throw e;
     }
-    console.log('[auth] signInWithGoogle: response', data);
   }, []);
 
   const signInWithApple = useCallback(async () => {
+    console.log('[auth] signInWithApple: start, platform=', Platform.OS);
+    await probeApi('apple');
     if (Platform.OS === 'ios') {
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
@@ -122,15 +168,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const { error } = await authClient.signIn.social({
-      provider: 'apple',
-      callbackURL: 'wondertales://',
-    });
-    if (error) {
-      console.error('[auth] Apple sign-in error:', error);
-      throw new Error(
-        error.message ?? `Apple sign-in failed (status ${error.status})`,
+    try {
+      console.log(
+        '[auth] signInWithApple: non-iOS, calling signIn.social (web flow)',
       );
+      const { error } = await authClient.signIn.social({
+        provider: 'apple',
+        callbackURL: 'wondertales://',
+      });
+      if (error) {
+        console.error(
+          '[auth] Apple sign-in error (Better Auth):',
+          JSON.stringify(error, null, 2),
+        );
+        throw new Error(
+          error.message ?? `Apple sign-in failed (status ${error.status})`,
+        );
+      }
+    } catch (e) {
+      console.error('[auth] signInWithApple: threw', {
+        name: e instanceof Error ? e.name : typeof e,
+        message: e instanceof Error ? e.message : String(e),
+        stack: e instanceof Error ? e.stack : undefined,
+      });
+      throw e;
     }
   }, [refetch]);
 
