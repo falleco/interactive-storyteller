@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { type BookMode, useBooks } from '~/features/books';
@@ -43,9 +43,22 @@ export default function ImagineScreen() {
   const [storyteller, setStoryteller] = useState<string | null>(null);
   const [childProfileId, setChildProfileId] = useState<string | null>(null);
   const [theme, setTheme] = useState('');
+  const { templateId: templateIdParam } = useLocalSearchParams<{
+    templateId?: string;
+  }>();
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(
-    null,
+    templateIdParam ?? null,
   );
+
+  // Sync the deep-link param into local state when arriving from the
+  // tab-bar sheet — and adopt the template's language if it sets one so
+  // the user lands on the right `visibleTemplates` filter.
+  useEffect(() => {
+    if (!templateIdParam) return;
+    setSelectedTemplateId(templateIdParam);
+    const tpl = templates.find((t) => t.id === templateIdParam);
+    if (tpl?.language) setLanguage(tpl.language);
+  }, [templateIdParam, templates]);
   const [isGenerating, setIsGenerating] = useState(false);
 
   const visibleTemplates = useMemo(

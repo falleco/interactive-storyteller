@@ -1,7 +1,5 @@
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import * as Haptics from 'expo-haptics';
-import { type Href, router } from 'expo-router';
 import { useEffect } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
@@ -18,12 +16,23 @@ import { icons } from '../icons';
 import { GlassView } from './glass-view';
 import { TabBarButton } from './tab-bar-button';
 
-const TAB_BAR_HEIGHT = 68;
+/**
+ * Geometry constants exported so other components (notably the
+ * `WonderSheet` blob) can compute the FAB's absolute position from
+ * window dimensions + safe-area insets without re-implementing the
+ * layout formula.
+ */
+export const TAB_BAR_HEIGHT = 68;
 const TAB_BAR_OUTER_PADDING = 18;
 const INNER_PADDING = 4;
 const PILL_RADIUS = 999;
 const CREATE_BUTTON_SIZE = 56;
-const CREATE_BUTTON_RADIUS = CREATE_BUTTON_SIZE / 2;
+export const CREATE_BUTTON_RADIUS = CREATE_BUTTON_SIZE / 2;
+
+/** Matches the runtime formula used in `TabBar` for paddingBottom. */
+export function tabBarPaddingBottom(bottomInset: number): number {
+  return bottomInset > 0 ? Math.max(bottomInset - 22, 6) : 12;
+}
 
 // Slide animation for the active-tab indicator pill.
 const SLIDE_DURATION = 380;
@@ -54,22 +63,15 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     indexShared.value = state.index;
   }, [state.index, indexShared]);
 
-  const handleCreate = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(
-      () => undefined,
-    );
-    router.push('/imagine' as Href);
-  };
+  // The "+" FAB used to live here; it's now rendered by `<WonderSheet>`
+  // at the root so it can sit visually on top of the Skia blob. The
+  // tab-bar just keeps the regular tabs.
 
   // Sit close to the bottom edge but leave just enough room so the glass
   // bar floats above the home indicator without bleeding into it. Devices
   // without an indicator (older iPhones / Android with gesture nav off)
   // get a fixed comfortable gap.
-  const paddingBottom = bottomInset > 0 ? Math.max(bottomInset - 22, 6) : 12;
-  // Anchor the centre of the create button at the top edge of the glass bar
-  // so half the circle stands above the surface (raised pattern).
-  const createButtonBottom =
-    paddingBottom + TAB_BAR_HEIGHT - CREATE_BUTTON_RADIUS;
+  const paddingBottom = tabBarPaddingBottom(bottomInset);
 
   return (
     <View
@@ -132,16 +134,10 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         })}
       </GlassView>
 
-      {/* Rendered AFTER the glass bar so it stacks on top of it (later
-          siblings paint over earlier ones in RN). */}
-      <Pressable
-        onPress={handleCreate}
-        accessibilityRole="button"
-        accessibilityLabel="New story"
-        style={[styles.createButton, { bottom: createButtonBottom }]}
-      >
-        <MaterialCommunityIcons name="plus" color="#ffffff" size={30} />
-      </Pressable>
+      {/* Both the create FAB *and* the sheet itself live in
+          `<WonderSheet>` (mounted by `<WonderSheetHost>` at the root)
+          so the FAB sits visually on top of the Skia blob — otherwise
+          the white blob would cover the purple button. */}
     </View>
   );
 }
@@ -245,28 +241,5 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(168, 85, 247, 0.35)',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(192, 132, 252, 0.7)',
-  },
-  createButton: {
-    position: 'absolute',
-    // `bottom` is computed at render time so it tracks the dynamic
-    // paddingBottom (which depends on the device's home-indicator inset).
-    alignSelf: 'center',
-    width: CREATE_BUTTON_SIZE,
-    height: CREATE_BUTTON_SIZE,
-    borderRadius: CREATE_BUTTON_RADIUS,
-    backgroundColor: '#9333ea', // Tailwind purple-600 (solid)
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 4,
-    borderColor: '#ffffff',
-    shadowColor: '#7c3aed',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    // zIndex on iOS, elevation on Android — both push the button above the
-    // glass bar's native surface so the raised circle isn't clipped behind
-    // the BlurView/LiquidGlassView material.
-    zIndex: 10,
-    elevation: 12,
   },
 });

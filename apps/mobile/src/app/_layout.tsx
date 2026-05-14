@@ -13,6 +13,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import '@/global.css';
 
 import { SidebarHost } from '~/shared/components/core/sidebar-host';
+import { WonderSheetHost } from '~/shared/components/core/wonder-sheet-host';
 import { DevMenuFab } from '~/shared/dev/dev-menu-fab';
 import { AuthProvider } from '~/shared/hooks/use-auth';
 import { useColorScheme } from '~/shared/hooks/use-color-scheme';
@@ -57,70 +58,72 @@ export default function RootLayout() {
               value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}
             >
               <SidebarHost>
-                <Stack>
-                  <Stack.Screen
-                    name="(tabs)"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="settings"
-                    options={{
-                      presentation: 'card',
-                      animation: 'slide_from_left',
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="family/me"
-                    options={{
-                      presentation: 'formSheet',
-                      // iOS-native partial sheet ("popup" feel); on Android
-                      // the runtime falls back to a full-screen modal.
-                      sheetAllowedDetents: [0.7, 1],
-                      sheetCornerRadius: 24,
-                      sheetGrabberVisible: true,
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="family/child/[id]"
-                    options={{
-                      presentation: 'formSheet',
-                      sheetAllowedDetents: [0.7, 1],
-                      sheetCornerRadius: 24,
-                      sheetGrabberVisible: true,
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="imagine"
-                    options={{
-                      presentation: 'card',
-                      animation: 'slide_from_bottom',
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="book/[id]"
-                    options={{
-                      presentation: 'card',
-                      animation: 'slide_from_right',
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="dev-menu"
-                    options={{
-                      presentation: 'modal',
-                      headerShown: false,
-                      animation: 'slide_from_bottom',
-                    }}
-                  />
-                </Stack>
-                <DevMenuFab />
-                {/* StatusBar is controlled inside <ColorSchemeProvider> so
-                    its style can defer until the theme-reveal animation
-                    completes — don't double-mount it here. */}
+                <WonderSheetHost>
+                  <Stack>
+                    <Stack.Screen
+                      name="(tabs)"
+                      options={{ headerShown: false }}
+                    />
+                    <Stack.Screen
+                      name="settings"
+                      options={{
+                        presentation: 'card',
+                        animation: 'slide_from_left',
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="family/me"
+                      options={{
+                        presentation: 'formSheet',
+                        // iOS-native partial sheet ("popup" feel); on Android
+                        // the runtime falls back to a full-screen modal.
+                        sheetAllowedDetents: [0.7, 1],
+                        sheetCornerRadius: 24,
+                        sheetGrabberVisible: true,
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="family/child/[id]"
+                      options={{
+                        presentation: 'formSheet',
+                        sheetAllowedDetents: [0.7, 1],
+                        sheetCornerRadius: 24,
+                        sheetGrabberVisible: true,
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="imagine"
+                      options={{
+                        presentation: 'card',
+                        animation: 'slide_from_bottom',
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="book/[id]"
+                      options={{
+                        presentation: 'card',
+                        animation: 'slide_from_right',
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="dev-menu"
+                      options={{
+                        presentation: 'modal',
+                        headerShown: false,
+                        animation: 'slide_from_bottom',
+                      }}
+                    />
+                  </Stack>
+                  <DevMenuFab />
+                  {/* StatusBar is controlled inside <ColorSchemeProvider> so
+                      its style can defer until the theme-reveal animation
+                      completes — don't double-mount it here. */}
+                </WonderSheetHost>
               </SidebarHost>
             </ThemeProvider>
           </AuthProvider>
