@@ -15,12 +15,6 @@ export class CreateStoryTemplateDto {
   @MaxLength(80)
   title!: string;
 
-  @ApiPropertyOptional({ maxLength: 200 })
-  @IsOptional()
-  @IsString()
-  @MaxLength(200)
-  description?: string;
-
   @ApiProperty({ minLength: 1, maxLength: 4000 })
   @IsString()
   @MinLength(1)

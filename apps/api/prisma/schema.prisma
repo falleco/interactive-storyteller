@@ -215,7 +215,6 @@ model StoryTemplate {
   userId          String?  @map("user_id")
   user            User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   title           String
-  description     String?
   theme           String
   language        String?
   coverImageUrl   String?  @map("cover_image_url")

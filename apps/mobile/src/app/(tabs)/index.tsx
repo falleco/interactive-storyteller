@@ -54,7 +54,7 @@ export default function HomeTab() {
   const sidebarItems: SidebarItem[] = [
     {
       id: 'templates',
-      label: 'Story templates',
+      label: 'Templates',
       icon: 'note-edit-outline',
       onPress: () => router.push('/settings/templates' as Href),
     },

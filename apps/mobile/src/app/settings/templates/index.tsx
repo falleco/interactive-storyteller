@@ -1,22 +1,30 @@
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Alert, FlatList, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ModalHeader } from '~/features/settings';
 import {
   type StoryTemplate,
   useStoryTemplates,
 } from '~/features/story-templates';
-import { FlatButton } from '~/shared/components/core/flat-button';
+import { ScreenHeader } from '~/shared/components/core/screen-header';
 import { ThemedText } from '~/shared/components/themed-text';
 import { useAuth } from '~/shared/hooks/use-auth';
 import { useThemeColor } from '~/shared/hooks/use-theme-color';
-import { cn } from '~/shared/lib/cn';
 
 export default function StoryTemplatesListScreen() {
   const backgroundColor = useThemeColor({}, 'background');
+  const iconColor = useThemeColor({}, 'text');
   const { user } = useAuth();
   const { templates, isLoading, error, refresh, remove } = useStoryTemplates();
+
+  // Only the user's own templates show up here — public templates are
+  // surfaced via the wonder-sheet wizard. Managing public ones isn't a
+  // user-facing concern on this screen.
+  const ownedTemplates = useMemo(
+    () => templates.filter((t) => t.isOwned),
+    [templates],
+  );
 
   // Editor screen mounts a separate useStoryTemplates instance, so its
   // create/update doesn't reach this list's state. Refetch on focus.
@@ -26,18 +34,24 @@ export default function StoryTemplatesListScreen() {
     }, [refresh]),
   );
 
+  // Separate state for the pull-to-refresh spinner — `isLoading` from
+  // the hook also lights up on focus refetches, and on iOS the native
+  // `UIRefreshControl` gets stuck visible when it flips true → false
+  // without an actual pull gesture. Same pattern as Library / Family.
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+  const handlePullRefresh = useCallback(async () => {
+    setIsPullRefreshing(true);
+    try {
+      await refresh();
+    } finally {
+      setIsPullRefreshing(false);
+    }
+  }, [refresh]);
+
   const handleClose = () => router.back();
   const handleAdd = () => router.push('/settings/templates/new');
-  const handleEdit = (template: StoryTemplate) => {
-    if (!template.isOwned) {
-      Alert.alert(
-        'Read-only',
-        'Public templates can only be viewed. Add a new template to write your own.',
-      );
-      return;
-    }
+  const handleEdit = (template: StoryTemplate) =>
     router.push(`/settings/templates/${template.id}`);
-  };
 
   const handleDelete = (template: StoryTemplate) => {
     Alert.alert(
@@ -63,10 +77,31 @@ export default function StoryTemplatesListScreen() {
     );
   };
 
+  // SafeAreaView edges excluding `top` — `<ScreenHeader>` already
+  // factors in `insets.top`, so letting the SafeAreaView also add a
+  // top inset double-pads the header and leaves a big empty strip.
+  const safeEdges = ['left', 'right', 'bottom'] as const;
+
+  const addButton = (
+    <Pressable
+      onPress={handleAdd}
+      accessibilityRole="button"
+      accessibilityLabel="New template"
+      hitSlop={12}
+      className="w-11 h-11 rounded-full bg-black/10 dark:bg-white/10 items-center justify-center"
+    >
+      <MaterialCommunityIcons name="plus" size={22} color={iconColor} />
+    </Pressable>
+  );
+
   if (!user) {
     return (
-      <SafeAreaView className="flex-1" style={{ backgroundColor }}>
-        <ModalHeader title="📝 Templates" onClose={handleClose} />
+      <SafeAreaView
+        className="flex-1"
+        edges={safeEdges}
+        style={{ backgroundColor }}
+      >
+        <ScreenHeader title="Templates" onBack={handleClose} />
         <View className="flex-1 items-center justify-center px-6">
           <ThemedText className="text-base text-gray-500 dark:text-zinc-400 text-center">
             Sign in to manage templates.
@@ -77,23 +112,31 @@ export default function StoryTemplatesListScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor }}>
-      <ModalHeader title="📝 Templates" onClose={handleClose} />
+    <SafeAreaView
+      className="flex-1"
+      edges={safeEdges}
+      style={{ backgroundColor }}
+    >
+      <ScreenHeader title="Templates" onBack={handleClose} right={addButton} />
 
       <FlatList
         className="flex-1"
-        contentContainerClassName="p-5 pb-32 gap-3"
-        data={templates}
+        contentContainerClassName="p-5 pb-12 gap-3"
+        data={ownedTemplates}
         keyExtractor={(t) => t.id}
-        refreshing={isLoading}
-        onRefresh={refresh}
+        refreshing={isPullRefreshing}
+        onRefresh={handlePullRefresh}
         ListEmptyComponent={
           !isLoading ? (
-            <View className="items-center mt-12 px-6">
-              <ThemedText className="text-base text-gray-500 dark:text-zinc-400 text-center">
+            <View className="items-center mt-16 px-8 gap-2">
+              <ThemedText className="text-5xl mb-2">📝</ThemedText>
+              <ThemedText className="text-lg font-black text-black dark:text-white text-center">
+                {error ? "Couldn't load templates" : 'No templates yet'}
+              </ThemedText>
+              <ThemedText className="text-sm text-gray-500 dark:text-zinc-400 text-center">
                 {error
-                  ? `Couldn't load templates: ${error.message}`
-                  : 'No templates yet. Tap "+ New template" to add one.'}
+                  ? error.message
+                  : "Save the kind of stories you want to keep telling — tap + above and you'll see them here next time you create an adventure."}
               </ThemedText>
             </View>
           ) : null
@@ -102,18 +145,10 @@ export default function StoryTemplatesListScreen() {
           <TemplateRow
             template={item}
             onPress={() => handleEdit(item)}
-            onLongPress={item.isOwned ? () => handleDelete(item) : undefined}
+            onLongPress={() => handleDelete(item)}
           />
         )}
       />
-
-      <View className="absolute bottom-10 left-0 right-0 px-6">
-        <FlatButton size="lg" className="bg-black" onPress={handleAdd}>
-          <ThemedText className="text-base font-semibold text-white">
-            ＋ New template
-          </ThemedText>
-        </FlatButton>
-      </View>
     </SafeAreaView>
   );
 }
@@ -131,45 +166,11 @@ function TemplateRow({
     <Pressable
       onPress={onPress}
       onLongPress={onLongPress}
-      className={cn(
-        'p-3 rounded-2xl border',
-        template.isOwned
-          ? 'bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-700'
-          : 'bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700',
-      )}
+      className="p-3 rounded-2xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700"
     >
-      <View className="flex-row items-center gap-2">
-        <ThemedText className="text-sm font-bold text-black dark:text-white flex-1">
-          {template.title}
-        </ThemedText>
-        <View
-          className={cn(
-            'px-2 py-0.5 rounded-full',
-            template.isOwned
-              ? 'bg-gray-100 dark:bg-zinc-700'
-              : 'bg-purple-100 dark:bg-purple-900/50',
-          )}
-        >
-          <ThemedText
-            className={cn(
-              'text-[10px] font-semibold',
-              template.isOwned
-                ? 'text-gray-700 dark:text-zinc-300'
-                : 'text-purple-900 dark:text-purple-200',
-            )}
-          >
-            {template.isOwned ? 'MINE' : 'PUBLIC'}
-          </ThemedText>
-        </View>
-      </View>
-      {template.description ? (
-        <ThemedText
-          numberOfLines={2}
-          className="text-xs text-gray-600 dark:text-zinc-400 mt-1"
-        >
-          {template.description}
-        </ThemedText>
-      ) : null}
+      <ThemedText className="text-sm font-bold text-black dark:text-white">
+        {template.title}
+      </ThemedText>
       {template.language ? (
         <ThemedText className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-zinc-500 mt-1">
           {template.language}

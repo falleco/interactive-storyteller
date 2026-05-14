@@ -444,14 +444,6 @@ function OwnedTemplateCard({
           </ThemedText>
         </View>
       </View>
-      {template.description ? (
-        <ThemedText
-          numberOfLines={2}
-          className="text-xs text-gray-600 dark:text-zinc-400 mt-1"
-        >
-          {template.description}
-        </ThemedText>
-      ) : null}
     </Pressable>
   );
 }

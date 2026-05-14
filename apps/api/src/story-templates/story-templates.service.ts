@@ -11,7 +11,6 @@ import type { UpdateStoryTemplateDto } from './dto/update-story-template.dto';
 export interface StoryTemplatePayload {
   id: string;
   title: string;
-  description: string | null;
   theme: string;
   language: string | null;
   coverImageUrl: string | null;
@@ -46,7 +45,6 @@ export class StoryTemplatesService {
       data: {
         userId: input.userId,
         title: input.data.title,
-        description: input.data.description ?? null,
         theme: input.data.theme,
         language: input.data.language ?? null,
       },
@@ -81,9 +79,6 @@ export class StoryTemplatesService {
       where: { id: input.id },
       data: {
         ...(input.data.title !== undefined ? { title: input.data.title } : {}),
-        ...(input.data.description !== undefined
-          ? { description: input.data.description }
-          : {}),
         ...(input.data.theme !== undefined ? { theme: input.data.theme } : {}),
         ...(input.data.language !== undefined
           ? { language: input.data.language }
@@ -145,7 +140,6 @@ function toPayload(
   return {
     id: row.id,
     title: row.title,
-    description: row.description,
     theme: row.theme,
     language: row.language,
     coverImageUrl: row.coverImageUrl,

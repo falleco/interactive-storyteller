@@ -15,8 +15,8 @@ import {
   type UploadChildImageInput,
   useChildren,
 } from '~/features/children';
-import { ModalHeader } from '~/features/settings';
 import { FlatButton } from '~/shared/components/core/flat-button';
+import { CameraIcon } from '~/shared/components/icons/camera-icon';
 import { ThemedText } from '~/shared/components/themed-text';
 import { useThemeColor } from '~/shared/hooks/use-theme-color';
 import { cn } from '~/shared/lib/cn';
@@ -43,7 +43,8 @@ export default function ChildEditScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const isNew = id === 'new';
 
-  const { children, create, update, uploadImage, isLoading } = useChildren();
+  const { children, create, update, remove, uploadImage, isLoading } =
+    useChildren();
   const existing = useMemo(
     () => (isNew ? null : (children.find((c) => c.id === id) ?? null)),
     [isNew, children, id],
@@ -56,6 +57,7 @@ export default function ChildEditScreen() {
     null,
   );
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [touchedName, setTouchedName] = useState(false);
   const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
 
@@ -76,8 +78,6 @@ export default function ChildEditScreen() {
   const handlePickAsset = (asset: UploadChildImageInput) => {
     setPickedAsset(asset);
   };
-
-  const handleClose = () => router.back();
 
   const handleAgeText = (text: string) => {
     const digits = text.replace(/\D/g, '').slice(0, 2);
@@ -129,17 +129,40 @@ export default function ChildEditScreen() {
     }
   };
 
+  const handleDelete = () => {
+    if (isNew || !id || !existing) return;
+    Alert.alert(
+      'Delete child profile',
+      `Remove "${existing.name}"? Books they appear in keep their snapshot, but new stories can't pick them anymore.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeleting(true);
+            try {
+              await remove(id);
+              router.back();
+            } catch (e) {
+              Alert.alert(
+                'Failed',
+                e instanceof Error ? e.message : 'Could not delete.',
+              );
+              setIsDeleting(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const nameInvalid = touchedName && name.trim().length === 0;
   const genderLabel =
     GENDER_OPTIONS.find((o) => o.value === gender)?.label ?? 'Choose…';
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor }}>
-      <ModalHeader
-        title={isNew ? '＋ Add child' : '✏️ Edit child'}
-        onClose={handleClose}
-      />
-
       <ScrollView
         className="flex-1 p-5"
         contentContainerClassName="pb-12 gap-5"
@@ -217,13 +240,29 @@ export default function ChildEditScreen() {
         <FlatButton
           size="lg"
           className="bg-black mt-4"
-          isDisabled={isSaving || isLoading}
+          isDisabled={isSaving || isDeleting || isLoading}
           onPress={handleSave}
         >
           <ThemedText className="text-base font-semibold text-white">
             {isSaving ? 'Saving…' : isNew ? 'Create' : 'Save changes'}
           </ThemedText>
         </FlatButton>
+
+        {/* Delete is only shown when editing an existing profile —
+            creation has nothing to remove. Confirmation lives in the
+            `handleDelete` Alert. */}
+        {!isNew ? (
+          <FlatButton
+            size="lg"
+            className="bg-red-500 mt-2"
+            isDisabled={isSaving || isDeleting || isLoading}
+            onPress={handleDelete}
+          >
+            <ThemedText className="text-base font-semibold text-white">
+              {isDeleting ? 'Removing…' : 'Delete child'}
+            </ThemedText>
+          </FlatButton>
+        ) : null}
       </ScrollView>
 
       <PhotoSourceSheet
@@ -284,33 +323,46 @@ function AvatarPicker({
   initial: string;
   onPress: () => void;
 }) {
+  // The badge has to be a sibling of the round avatar (not its child),
+  // because the avatar uses `overflow-hidden` for the circular mask —
+  // any child positioned at the corner gets clipped by that mask. Keep
+  // the outer Pressable un-rounded so the badge can overhang.
   return (
     <Pressable
       onPress={onPress}
       accessibilityLabel="Choose profile picture"
-      className="w-28 h-28 rounded-full overflow-hidden border-4 border-white bg-purple-200 dark:bg-purple-800 items-center justify-center"
-      style={{
-        // soft shadow so the avatar feels lifted off the sheet
-        shadowColor: '#000',
-        shadowOpacity: 0.12,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 4 },
-        elevation: 4,
-      }}
+      className="relative w-28 h-28"
     >
-      {uri ? (
-        <Image
-          source={{ uri }}
-          style={{ width: '100%', height: '100%' }}
-          contentFit="cover"
-        />
-      ) : (
-        <ThemedText className="text-4xl font-black text-purple-900 dark:text-purple-200">
-          {initial}
-        </ThemedText>
-      )}
-      <View className="absolute bottom-0 right-0 w-9 h-9 rounded-full bg-black items-center justify-center border-2 border-white">
-        <ThemedText className="text-white text-base">📷</ThemedText>
+      <View
+        className="w-28 h-28 rounded-full overflow-hidden border-4 border-white bg-purple-200 dark:bg-purple-800 items-center justify-center"
+        style={{
+          // soft shadow so the avatar feels lifted off the sheet
+          shadowColor: '#000',
+          shadowOpacity: 0.12,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 4 },
+          elevation: 4,
+        }}
+      >
+        {uri ? (
+          <Image
+            source={{ uri }}
+            style={{ width: '100%', height: '100%' }}
+            contentFit="cover"
+          />
+        ) : (
+          <ThemedText className="text-4xl font-black text-purple-900 dark:text-purple-200">
+            {initial}
+          </ThemedText>
+        )}
+      </View>
+      <View
+        className="absolute w-9 h-9 rounded-full bg-black items-center justify-center border-2 border-white"
+        // Small negative offsets so the badge sits flush at ~5 o'clock,
+        // overlapping the avatar's edge instead of vanishing inside it.
+        style={{ bottom: 2, right: 2 }}
+      >
+        <CameraIcon size={18} color="white" />
       </View>
     </Pressable>
   );

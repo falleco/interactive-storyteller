@@ -62,6 +62,7 @@ export function useBooks(): UseBooksResult {
           storyteller: created.storyteller,
           coverImageUrl: null,
           pageCount: created.pageCount,
+          completedReadCount: 0,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },

@@ -12,6 +12,7 @@ import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import '@/global.css';
 
+import { Platform } from 'react-native';
 import { SidebarHost } from '~/shared/components/core/sidebar-host';
 import { WonderSheetHost } from '~/shared/components/core/wonder-sheet-host';
 import { DevMenuFab } from '~/shared/dev/dev-menu-fab';
@@ -73,13 +74,22 @@ export default function RootLayout() {
                       }}
                     />
                     <Stack.Screen
+                      name="settings/templates/index"
+                      options={{ headerShown: false }}
+                    />
+                    <Stack.Screen
+                      name="settings/templates/[id]"
+                      options={{ headerShown: false }}
+                    />
+                    <Stack.Screen
                       name="family/me"
                       options={{
                         presentation: 'formSheet',
                         // iOS-native partial sheet ("popup" feel); on Android
-                        // the runtime falls back to a full-screen modal.
-                        sheetAllowedDetents: [0.7, 1],
-                        sheetCornerRadius: 24,
+                        // the runtime falls back to a bottom sheet via
+                        // react-native-screens.
+                        sheetAllowedDetents: [0.6, 1],
+                        sheetCornerRadius: Platform.OS === 'ios' ? 64 : 24,
                         sheetGrabberVisible: true,
                         headerShown: false,
                       }}
@@ -88,8 +98,8 @@ export default function RootLayout() {
                       name="family/child/[id]"
                       options={{
                         presentation: 'formSheet',
-                        sheetAllowedDetents: [0.7, 1],
-                        sheetCornerRadius: 24,
+                        sheetAllowedDetents: [0.6, 1],
+                        sheetCornerRadius: Platform.OS === 'ios' ? 64 : 24,
                         sheetGrabberVisible: true,
                         headerShown: false,
                       }}

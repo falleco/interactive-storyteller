@@ -2,10 +2,10 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ModalHeader } from '~/features/settings';
 import { useStoryTemplates } from '~/features/story-templates';
 import { ENABLED_LANGUAGES, type Language } from '~/features/storytellers';
 import { FlatButton } from '~/shared/components/core/flat-button';
+import { ScreenHeader } from '~/shared/components/core/screen-header';
 import { ThemedText } from '~/shared/components/themed-text';
 import { useThemeColor } from '~/shared/hooks/use-theme-color';
 import { cn } from '~/shared/lib/cn';
@@ -29,7 +29,6 @@ export default function TemplateEditorScreen() {
   );
 
   const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
   const [theme, setTheme] = useState('');
   const [language, setLanguage] = useState<Language | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -37,7 +36,6 @@ export default function TemplateEditorScreen() {
   useEffect(() => {
     if (existing) {
       setTitle(existing.title);
-      setDescription(existing.description ?? '');
       setTheme(existing.theme);
       setLanguage(existing.language);
     }
@@ -69,14 +67,12 @@ export default function TemplateEditorScreen() {
       if (isNew) {
         await create({
           title: trimmedTitle,
-          description: description.trim() || undefined,
           theme: trimmedTheme,
           language: language ?? undefined,
         });
       } else if (id) {
         await update(id, {
           title: trimmedTitle,
-          description: description.trim(),
           theme: trimmedTheme,
           language,
         });
@@ -90,10 +86,14 @@ export default function TemplateEditorScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor }}>
-      <ModalHeader
-        title={isNew ? '＋ New template' : '✏️ Edit template'}
-        onClose={handleClose}
+    <SafeAreaView
+      className="flex-1"
+      edges={['left', 'right', 'bottom']}
+      style={{ backgroundColor }}
+    >
+      <ScreenHeader
+        title={isNew ? 'New template' : 'Edit template'}
+        onBack={handleClose}
       />
 
       <ScrollView
@@ -117,21 +117,6 @@ export default function TemplateEditorScreen() {
             placeholderTextColor="#9ca3af"
             className="bg-gray-100 dark:bg-zinc-800 rounded-xl px-4 py-3 text-base text-black dark:text-white"
             maxLength={80}
-          />
-        </Field>
-
-        <Field
-          label="Description (optional)"
-          hint="One-line hook shown in the wizard list."
-        >
-          <TextInput
-            value={description}
-            onChangeText={setDescription}
-            editable={!isReadOnly}
-            placeholder="e.g. A journey beneath the waves."
-            placeholderTextColor="#9ca3af"
-            className="bg-gray-100 dark:bg-zinc-800 rounded-xl px-4 py-3 text-base text-black dark:text-white"
-            maxLength={200}
           />
         </Field>
 

@@ -33,6 +33,7 @@ import {
   type Storyteller,
   useStorytellers,
 } from '~/features/storytellers';
+import { PenIcon } from '~/shared/components/icons/pen-icon';
 import { ThemedText } from '~/shared/components/themed-text';
 import { useColorScheme } from '~/shared/hooks/use-color-scheme';
 import { cn } from '~/shared/lib/cn';
@@ -298,16 +299,30 @@ export function WonderSheet({ open, onClose, onToggle }: WonderSheetProps) {
     });
   }, [open, progress]);
 
+  // FAB icon morphs between Pen (closed) and Close-X (open). Driven by
+  // a single shared value going 0 → 180deg so the two icons spin in
+  // lockstep while opacity hands off at the midpoint — Pen fades out
+  // over the first half of the rotation, X fades in over the second
+  // half. The whole package reads as "the pen flipped over and became
+  // a close button" rather than a snap-swap.
   const fabRotation = useSharedValue(0);
   useEffect(() => {
-    fabRotation.value = withTiming(open ? 45 : 0, {
-      duration: 320,
+    fabRotation.value = withTiming(open ? 180 : 0, {
+      duration: 380,
       easing: Easing.bezier(0.4, 0, 0.1, 1),
     });
   }, [open, fabRotation]);
   const fabIconStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${fabRotation.value}deg` }],
   }));
+  const penOpacityStyle = useAnimatedStyle(() => {
+    const t = fabRotation.value / 180; // 0..1
+    return { opacity: Math.max(1 - t * 2, 0) };
+  });
+  const closeOpacityStyle = useAnimatedStyle(() => {
+    const t = fabRotation.value / 180;
+    return { opacity: Math.max(t * 2 - 1, 0) };
+  });
 
   const handleFabPress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(
@@ -516,8 +531,13 @@ export function WonderSheet({ open, onClose, onToggle }: WonderSheetProps) {
           accessibilityState={{ expanded: open }}
           style={[styles.fab, { bottom: fabBottom }]}
         >
-          <Animated.View style={fabIconStyle}>
-            <MaterialCommunityIcons name="plus" color="#ffffff" size={30} />
+          <Animated.View style={[styles.fabIconStack, fabIconStyle]}>
+            <Animated.View style={[styles.fabIconLayer, penOpacityStyle]}>
+              <PenIcon size={26} color="white" />
+            </Animated.View>
+            <Animated.View style={[styles.fabIconLayer, closeOpacityStyle]}>
+              <MaterialCommunityIcons name="close" size={26} color="#ffffff" />
+            </Animated.View>
           </Animated.View>
         </Pressable>
       ) : null}
@@ -697,14 +717,6 @@ function TemplateStep({
           >
             {tpl.title}
           </ThemedText>
-          {tpl.description ? (
-            <ThemedText
-              className="text-sm text-gray-500 dark:text-zinc-400 mt-1"
-              numberOfLines={2}
-            >
-              {tpl.description}
-            </ThemedText>
-          ) : null}
         </Pressable>
       ))}
     </ScrollView>
@@ -795,6 +807,17 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     zIndex: 10,
     elevation: 12,
+  },
+  // Square container that holds the two stacked icons so they can
+  // rotate as a unit and crossfade without affecting the FAB's circle.
+  fabIconStack: {
+    width: 26,
+    height: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fabIconLayer: {
+    position: 'absolute',
   },
   header: {
     flexDirection: 'row',

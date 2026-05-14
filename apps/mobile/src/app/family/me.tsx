@@ -20,8 +20,8 @@ import {
   type ParentRole,
   useParent,
 } from '~/features/parent';
-import { ModalHeader } from '~/features/settings';
 import { FlatButton } from '~/shared/components/core/flat-button';
+import { CameraIcon } from '~/shared/components/icons/camera-icon';
 import { ThemedText } from '~/shared/components/themed-text';
 import { useThemeColor } from '~/shared/hooks/use-theme-color';
 import { cn } from '~/shared/lib/cn';
@@ -62,8 +62,6 @@ export default function ParentEditScreen() {
 
   const avatarUri =
     pickedAsset?.uri ?? parent?.profileImageUrl ?? parent?.image ?? null;
-
-  const handleClose = () => router.back();
 
   const handleAgeText = (text: string) => {
     const digits = text.replace(/\D/g, '').slice(0, 3);
@@ -113,8 +111,6 @@ export default function ParentEditScreen() {
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor }}>
-      <ModalHeader title="✏️ Edit profile" onClose={handleClose} />
-
       <ScrollView
         className="flex-1 p-5"
         contentContainerClassName="pb-12 gap-5"
@@ -255,32 +251,42 @@ function AvatarPicker({
   initial: string;
   onPress: () => void;
 }) {
+  // Outer Pressable kept un-rounded so the camera badge can overhang
+  // the avatar's circular mask. See the matching note in the child
+  // form's `AvatarPicker`.
   return (
     <Pressable
       onPress={onPress}
       accessibilityLabel="Choose profile picture"
-      className="w-28 h-28 rounded-full overflow-hidden border-4 border-white bg-purple-200 dark:bg-purple-800 items-center justify-center"
-      style={{
-        shadowColor: '#000',
-        shadowOpacity: 0.12,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 4 },
-        elevation: 4,
-      }}
+      className="relative w-28 h-28"
     >
-      {uri ? (
-        <Image
-          source={{ uri }}
-          style={{ width: '100%', height: '100%' }}
-          contentFit="cover"
-        />
-      ) : (
-        <ThemedText className="text-4xl font-black text-purple-900 dark:text-purple-200">
-          {initial}
-        </ThemedText>
-      )}
-      <View className="absolute bottom-0 right-0 w-9 h-9 rounded-full bg-black items-center justify-center border-2 border-white">
-        <ThemedText className="text-white text-base">📷</ThemedText>
+      <View
+        className="w-28 h-28 rounded-full overflow-hidden border-4 border-white bg-purple-200 dark:bg-purple-800 items-center justify-center"
+        style={{
+          shadowColor: '#000',
+          shadowOpacity: 0.12,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 4 },
+          elevation: 4,
+        }}
+      >
+        {uri ? (
+          <Image
+            source={{ uri }}
+            style={{ width: '100%', height: '100%' }}
+            contentFit="cover"
+          />
+        ) : (
+          <ThemedText className="text-4xl font-black text-purple-900 dark:text-purple-200">
+            {initial}
+          </ThemedText>
+        )}
+      </View>
+      <View
+        className="absolute w-9 h-9 rounded-full bg-black items-center justify-center border-2 border-white"
+        style={{ bottom: -2, right: -2 }}
+      >
+        <CameraIcon size={18} color="white" />
       </View>
     </Pressable>
   );

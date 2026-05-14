@@ -17,6 +17,8 @@ export interface BookSummary {
   storyteller: string;
   coverImageUrl: string | null;
   pageCount: number;
+  /** Number of times the user has marked this book as fully read. */
+  completedReadCount: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -69,6 +71,7 @@ export class BooksService {
           storyteller: true,
           coverImageUrl: true,
           pageCount: true,
+          completedReadCount: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -193,6 +196,7 @@ function toBookDetail(
     storyteller: book.storyteller,
     coverImageUrl: book.coverImageUrl,
     pageCount: book.pageCount,
+    completedReadCount: book.completedReadCount,
     characterDescription: book.characterDescription,
     titleAudioUrl: book.titleAudioUrl,
     createdAt: book.createdAt.toISOString(),

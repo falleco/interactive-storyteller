@@ -46,7 +46,6 @@ async function seedStorytellers() {
 
 interface PublicTemplateSeed {
   title: string;
-  description: string;
   theme: string;
   language: string | null;
   sortOrder: number;
@@ -55,7 +54,6 @@ interface PublicTemplateSeed {
 const PUBLIC_TEMPLATES: PublicTemplateSeed[] = [
   {
     title: '🌊 Aventura no Fundo do Mar',
-    description: 'Uma viagem submarina com criaturas marinhas amigáveis.',
     theme: [
       'Uma aventura submarina cheia de descobertas no fundo do oceano.',
       '',
@@ -69,7 +67,6 @@ const PUBLIC_TEMPLATES: PublicTemplateSeed[] = [
   },
   {
     title: '🚀 Viagem ao Espaço',
-    description: 'Astronautas em uma missão entre planetas coloridos.',
     theme: [
       'Uma jornada espacial pilotando um foguete por planetas estranhos e amistosos.',
       '',
@@ -83,7 +80,6 @@ const PUBLIC_TEMPLATES: PublicTemplateSeed[] = [
   },
   {
     title: '🐉 O Pequeno Dragão',
-    description: 'Amizade improvável com um dragão que tem medo de fogo.',
     theme: [
       'Uma história de coragem com um pequeno dragão e uma criança que viram amigos.',
       '',
@@ -97,7 +93,6 @@ const PUBLIC_TEMPLATES: PublicTemplateSeed[] = [
   },
   {
     title: '🌊 Underwater Adventure',
-    description: 'A journey beneath the waves with friendly sea creatures.',
     theme: [
       'An underwater adventure full of discoveries on the ocean floor.',
       '',
@@ -111,7 +106,6 @@ const PUBLIC_TEMPLATES: PublicTemplateSeed[] = [
   },
   {
     title: '🚀 Space Voyage',
-    description: 'Astronauts on a mission across colorful planets.',
     theme: [
       'A space journey piloting a rocket through strange and friendly planets.',
       '',
@@ -125,14 +119,13 @@ const PUBLIC_TEMPLATES: PublicTemplateSeed[] = [
   },
   {
     title: '🐉 The Little Dragon',
-    description: 'An unlikely friendship with a dragon afraid of fire.',
     theme: [
       'A courage story with a tiny dragon and a child who become friends.',
       '',
       'Sample settings: a valley of crystals, a misty forest, the dragon-clan mountain, a mirror lake, ancient ruins.',
       'Sample characters: shy baby dragon, advisor fairy, gentle forest ranger, playful older dragon siblings, valley sage.',
       'Possible items: phoenix feather, warming stone, dragon scale, mountain map, book of sparks.',
-      'Possible themes: overcoming fears, discovering one\'s own power, accepting who you are, helping a friend, unlikely friendship.',
+      "Possible themes: overcoming fears, discovering one's own power, accepting who you are, helping a friend, unlikely friendship.",
     ].join('\n'),
     language: 'en',
     sortOrder: 30,
@@ -155,7 +148,6 @@ async function seedStoryTemplates() {
       await prisma.storyTemplate.update({
         where: { id: existing.id },
         data: {
-          description: tpl.description,
           theme: tpl.theme,
           language: tpl.language,
           sortOrder: tpl.sortOrder,
@@ -168,7 +160,6 @@ async function seedStoryTemplates() {
         data: {
           userId: null,
           title: tpl.title,
-          description: tpl.description,
           theme: tpl.theme,
           language: tpl.language,
           enabled: true,

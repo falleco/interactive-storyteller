@@ -19,6 +19,8 @@ export interface BookSummary {
   storyteller: string;
   coverImageUrl: string | null;
   pageCount: number;
+  /** Number of times the user has marked this book as fully read. */
+  completedReadCount: number;
   createdAt: string;
   updatedAt: string;
 }
