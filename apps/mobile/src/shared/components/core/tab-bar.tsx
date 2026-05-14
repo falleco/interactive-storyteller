@@ -231,9 +231,14 @@ const styles = StyleSheet.create({
   },
   indicator: {
     position: 'absolute',
+    // Match the GlassView's own padding on every side so the pill aligns
+    // with the tab cells, which sit inside the content box. RN places
+    // absolute children relative to the parent's padding-box edge, so
+    // `left: 0` would push the pill 4px to the left of tab 0; setting
+    // `left: INNER_PADDING` plants it on the first cell's left edge.
     top: INNER_PADDING,
     bottom: INNER_PADDING,
-    left: 0,
+    left: INNER_PADDING,
     borderRadius: PILL_RADIUS,
     // Tailwind purple-500 (168, 85, 247) translucent so it tints rather than
     // covers the glass underneath; brighter purple-400-ish border to crisp
