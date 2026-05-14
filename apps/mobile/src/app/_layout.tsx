@@ -71,11 +71,21 @@ export default function RootLayout() {
                     }}
                   />
                   <Stack.Screen
-                    name="family"
+                    name="family/me"
                     options={{
                       presentation: 'formSheet',
                       // iOS-native partial sheet ("popup" feel); on Android
                       // the runtime falls back to a full-screen modal.
+                      sheetAllowedDetents: [0.7, 1],
+                      sheetCornerRadius: 24,
+                      sheetGrabberVisible: true,
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="family/child/[id]"
+                    options={{
+                      presentation: 'formSheet',
                       sheetAllowedDetents: [0.7, 1],
                       sheetCornerRadius: 24,
                       sheetGrabberVisible: true,

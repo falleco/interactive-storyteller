@@ -1,7 +1,11 @@
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ScrollView, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import {
   type BookDetail,
   BookPlayer,
@@ -15,6 +19,8 @@ import { cn } from '~/shared/lib/cn';
 
 export default function BookDetailScreen() {
   const backgroundColor = useThemeColor({}, 'background');
+  const iconColor = useThemeColor({}, 'text');
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { book, isLoading, error, refetch } = useBookDetail(id ?? null);
   const { completeRead, chooseNext } = useBooks();
@@ -62,30 +68,52 @@ export default function BookDetailScreen() {
     );
   }
 
+  // Initial-fetch state — the book hasn't arrived yet. Render a quiet
+  // full-screen splash that mirrors the player's chrome (back-chevron in
+  // the corner, no header, no white safe-area band) so the transition
+  // into the player feels like one continuous surface rather than
+  // flashing a placeholder "📖 Story" header for a beat.
+  if (!book) {
+    return (
+      <View className="flex-1" style={{ backgroundColor }}>
+        <View
+          pointerEvents="box-none"
+          style={{ position: 'absolute', top: insets.top + 8, left: 16 }}
+        >
+          <Pressable
+            onPress={handleClose}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+            hitSlop={12}
+            className="w-11 h-11 rounded-full bg-black/15 dark:bg-white/10 items-center justify-center"
+          >
+            <MaterialCommunityIcons
+              name="chevron-left"
+              size={26}
+              color={iconColor}
+            />
+          </Pressable>
+        </View>
+        <View className="flex-1 items-center justify-center px-6">
+          {error ? (
+            <ThemedText className="text-base text-red-600 text-center">
+              {error.message}
+            </ThemedText>
+          ) : isLoading ? (
+            <ActivityIndicator />
+          ) : null}
+        </View>
+      </View>
+    );
+  }
+
+  // Book exists but isn't ready yet (generating / draft / failed) — keep
+  // the modal header here so the user has context on the title + a close
+  // affordance while the cover and pages stream in.
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor }}>
-      <ModalHeader
-        title={book ? book.title : '📖 Story'}
-        onClose={handleClose}
-      />
-
-      {!book && isLoading && (
-        <View className="flex-1 items-center justify-center">
-          <ThemedText className="text-base text-gray-500 dark:text-zinc-400">
-            Loading…
-          </ThemedText>
-        </View>
-      )}
-
-      {error && !book && (
-        <View className="flex-1 items-center justify-center px-6">
-          <ThemedText className="text-base text-red-600 text-center">
-            {error.message}
-          </ThemedText>
-        </View>
-      )}
-
-      {book && book.status !== 'ready' && <GeneratingView book={book} />}
+      <ModalHeader title={book.title} onClose={handleClose} />
+      <GeneratingView book={book} />
     </SafeAreaView>
   );
 }

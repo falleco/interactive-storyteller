@@ -1,12 +1,14 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlatButton } from '~/shared/components/core/flat-button';
 import { Slider } from '~/shared/components/core/liquid-swipe';
 import { ThemedText } from '~/shared/components/themed-text';
+import { useColorScheme } from '~/shared/hooks/use-color-scheme';
 import { cn } from '~/shared/lib/cn';
+import { NarratedText } from './narrated-text';
 import {
   type BookChoice,
   type BookDetail,
@@ -45,23 +47,35 @@ type Slide =
  * Pastel backdrop picked per slide so the wave has something colourful to
  * reveal — keeps each page-turn visually distinct for the kids reading
  * along. Kept here (not in the Slider) because the colour is data-driven
- * by the slide kind, not a generic prop of the swipe primitive.
+ * by the slide kind, not a generic prop of the swipe primitive. Dark
+ * tones keep the hue family of their light counterparts so the slides
+ * stay recognisable across themes.
  */
-function backgroundColorFor(slide: Slide | undefined): string {
-  if (!slide) return '#f5f3ff';
+function backgroundColorFor(
+  slide: Slide | undefined,
+  scheme: 'light' | 'dark',
+): string {
+  const dark = scheme === 'dark';
+  if (!slide) return dark ? '#15102b' : '#f5f3ff';
   switch (slide.kind) {
     case 'cover':
-      return '#ede9fe'; // purple-100
+      return dark ? '#1e1b3a' : '#ede9fe';
     case 'page':
       // Alternate two warm tones based on page number so consecutive pages
       // contrast against each other when revealed by the wave.
-      return slide.page.pageNumber % 2 === 0 ? '#fef3c7' : '#fce7f3';
+      return slide.page.pageNumber % 2 === 0
+        ? dark
+          ? '#2a1f0e'
+          : '#fef3c7'
+        : dark
+          ? '#2a0f1d'
+          : '#fce7f3';
     case 'choices':
-      return '#fed7aa'; // orange-200
+      return dark ? '#2d1a0c' : '#fed7aa';
     case 'loading-next':
-      return '#e0e7ff'; // indigo-100
+      return dark ? '#161630' : '#e0e7ff';
     case 'end':
-      return '#dcfce7'; // green-100
+      return dark ? '#0d2818' : '#dcfce7';
   }
 }
 
@@ -72,6 +86,7 @@ export function BookPlayer({
   onBack,
 }: BookPlayerProps) {
   const insets = useSafeAreaInsets();
+  const scheme = useColorScheme();
   const [index, setIndex] = useState(0);
   const [isFinishing, setIsFinishing] = useState(false);
   const [pendingChoiceIndex, setPendingChoiceIndex] = useState<number | null>(
@@ -93,6 +108,13 @@ export function BookPlayer({
   const [audioFinishedTrack, setAudioFinishedTrack] = useState<string | null>(
     null,
   );
+  /**
+   * Once the kid has reached the end slide we unlock the backwards
+   * navigation so they can flip through the whole book to re-read pages.
+   * During the *first* read we hide the previous-page handle so the only
+   * affordance is "keep going" — keeps focus on the story.
+   */
+  const [hasReachedEnd, setHasReachedEnd] = useState(false);
 
   const slides = useMemo<Slide[]>(() => buildSlides(book), [book]);
   // Clamp the index — if the book updates and the previous index points
@@ -123,11 +145,20 @@ export function BookPlayer({
     setAudioFinished(false);
   }
 
-  useBookAudio({
+  const { currentTime, duration } = useBookAudio({
     source: audioSource,
     autoPlay: true,
     onComplete: () => setAudioFinished(true),
   });
+
+  // 0..1 narration progress driving the karaoke-style text highlight.
+  // While audio is loading (duration=0) progress is 0 → text is dim;
+  // once playback completes we snap to 1 so the page reads fully.
+  const audioProgress = audioFinished
+    ? 1
+    : duration > 0
+      ? Math.min(Math.max(currentTime / duration, 0), 1)
+      : 0;
 
   // Cover + content pages are read aloud — kids only get the page-turn
   // affordance after the narration finishes. Choices / end / loading-next
@@ -139,7 +170,15 @@ export function BookPlayer({
   // Reset to the cover whenever the book identity changes (different bookId).
   useEffect(() => {
     setIndex(0);
+    setHasReachedEnd(false);
   }, [book.id]);
+
+  // Latch the "finished a first pass" flag the moment the end slide is
+  // shown. Once set it stays set for the rest of the session, so the
+  // user can freely flip back and forth.
+  useEffect(() => {
+    if (currentSlide?.kind === 'end') setHasReachedEnd(true);
+  }, [currentSlide?.kind]);
 
   const handleFinish = useCallback(async () => {
     if (!onComplete) return;
@@ -164,19 +203,27 @@ export function BookPlayer({
     [onChoose, pendingChoiceIndex],
   );
 
-  const renderSlide = (slide: Slide) => {
-    const background = backgroundColorFor(slide);
+  const renderSlide = (slide: Slide, role: 'current' | 'prev' | 'next') => {
+    const background = backgroundColorFor(slide, scheme);
+    // Narration progress is "live" only on the active slide. Already-read
+    // slides (prev) show fully lit text, upcoming ones (next) stay dim.
+    const slideProgress =
+      role === 'current' ? audioProgress : role === 'prev' ? 1 : 0;
     switch (slide.kind) {
       case 'cover':
         return (
           <SlideContainer background={background}>
-            <CoverSlide imageUrl={book.coverImageUrl} title={book.title} />
+            <CoverSlide
+              imageUrl={book.coverImageUrl}
+              title={book.title}
+              progress={slideProgress}
+            />
           </SlideContainer>
         );
       case 'page':
         return (
           <SlideContainer background={background}>
-            <PageSlide page={slide.page} />
+            <PageSlide page={slide.page} progress={slideProgress} />
           </SlideContainer>
         );
       case 'choices':
@@ -208,7 +255,7 @@ export function BookPlayer({
   // edges (status bar, home indicator) blend with the page — the Slider
   // mounts in `absoluteFill` and any frame where it remounts (on index
   // change) would otherwise flash white from the screen's default bg.
-  const rootBackground = backgroundColorFor(currentSlide);
+  const rootBackground = backgroundColorFor(currentSlide, scheme);
 
   return (
     <View className="flex-1" style={{ backgroundColor: rootBackground }}>
@@ -221,11 +268,19 @@ export function BookPlayer({
           setIndex={setIndex}
           // Swipes are gated on the narration finishing — until then the
           // pull-tabs / wave don't appear because we hand the Slider
-          // `undefined` neighbours.
-          prev={canSwipe && prevSlide ? renderSlide(prevSlide) : undefined}
-          next={canSwipe && nextSlide ? renderSlide(nextSlide) : undefined}
+          // `undefined` neighbours. Backwards navigation stays hidden
+          // during the first read-through (unlocked by reaching the end
+          // slide) so the only affordance is "keep going".
+          prev={
+            canSwipe && hasReachedEnd && prevSlide
+              ? renderSlide(prevSlide, 'prev')
+              : undefined
+          }
+          next={
+            canSwipe && nextSlide ? renderSlide(nextSlide, 'next') : undefined
+          }
         >
-          {renderSlide(currentSlide)}
+          {renderSlide(currentSlide, 'current')}
         </Slider>
       )}
 
@@ -282,67 +337,160 @@ function SlideContainer({
   );
 }
 
-function CoverSlide({
-  imageUrl,
+/**
+ * Header row at the top of every titled slide. Sits at the same Y as
+ * the player's back-chevron (`top: insets.top + 8`, 44px square) and
+ * matches its height so the title vertically centres with the chevron
+ * regardless of length. Long titles auto-shrink (single line) instead
+ * of wrapping — keeps the header geometry stable so the alignment
+ * never drifts, and avoids truncation since a kid needs to see the
+ * whole title.
+ */
+const HEADER_HEIGHT = 44;
+const HEADER_TOP_OFFSET = 8;
+const HEADER_LEFT_OFFSET = 68;
+
+function SlideHeader({
   title,
+  narrate,
+  progress,
 }: {
-  imageUrl: string | null;
   title: string;
+  /** When true the title is rendered with karaoke-style narration highlight. */
+  narrate: boolean;
+  progress: number;
 }) {
+  const insets = useSafeAreaInsets();
+  const className = 'text-2xl font-black text-black dark:text-white';
+  // Force the line height to match the chevron's 44px button so the
+  // glyph baseline lands on the same y as the icon optical centre.
+  // Paired with a fixed font-size + `ellipsizeMode: 'tail'` (no auto-
+  // shrink), every title — long or short — stays anchored at the same
+  // visual position, which means alignment doesn't drift between cases.
+  const titleStyle = { lineHeight: HEADER_HEIGHT };
   return (
-    <View className="flex-1 px-6 pt-20 items-center">
-      {imageUrl ? (
-        <Image
-          source={{ uri: imageUrl }}
-          style={{
-            width: '100%',
-            aspectRatio: 1,
-            borderRadius: 24,
-          }}
-          contentFit="cover"
+    <View
+      className="pr-4"
+      style={{
+        paddingTop: insets.top + HEADER_TOP_OFFSET,
+        paddingLeft: HEADER_LEFT_OFFSET,
+        paddingBottom: 12,
+      }}
+    >
+      {narrate ? (
+        <NarratedText
+          text={title}
+          progress={progress}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+          style={titleStyle}
+          className={className}
         />
       ) : (
-        <View className="w-full aspect-square bg-gray-200 dark:bg-zinc-700 rounded-3xl items-center justify-center">
-          <ThemedText className="text-base text-gray-500 dark:text-zinc-400">
-            No cover
-          </ThemedText>
-        </View>
+        <ThemedText
+          numberOfLines={1}
+          ellipsizeMode="tail"
+          style={titleStyle}
+          className={className}
+        >
+          {title}
+        </ThemedText>
       )}
-      <ThemedText className="text-3xl font-black text-black dark:text-white text-center mt-6">
-        {title}
-      </ThemedText>
     </View>
   );
 }
 
-function PageSlide({ page }: { page: BookPagePayload }) {
+function CoverSlide({
+  imageUrl,
+  title,
+  progress,
+}: {
+  imageUrl: string | null;
+  title: string;
+  progress: number;
+}) {
+  const insets = useSafeAreaInsets();
+  // Reserve room for the page indicator (dots at `bottom: max(insets.bottom, 8)`,
+  // ~6px tall) plus a small breathing gap so the artwork doesn't kiss them.
+  const coverBottomPadding = Math.max(insets.bottom, 8) + 20;
   return (
-    <View className="flex-1 px-6 pt-20">
-      {page.imageUrl ? (
-        <Image
-          source={{ uri: page.imageUrl }}
-          style={{
-            width: '100%',
-            aspectRatio: 1,
-            borderRadius: 24,
-          }}
-          contentFit="cover"
-        />
-      ) : (
-        <View className="w-full aspect-square bg-gray-100 dark:bg-zinc-800 rounded-3xl items-center justify-center">
-          <ThemedText className="text-sm text-gray-400 dark:text-zinc-500">
-            Image coming…
-          </ThemedText>
-        </View>
-      )}
-      <View className="mt-4">
-        <ThemedText className="text-xl font-black text-black dark:text-white mb-2">
-          {page.title}
-        </ThemedText>
-        <ThemedText className="text-base text-black dark:text-white leading-7">
-          {page.content}
-        </ThemedText>
+    <View className="flex-1">
+      <SlideHeader title={title} narrate progress={progress} />
+      <View
+        className="px-6 pt-8 flex-1 items-center justify-start"
+        style={{ paddingBottom: coverBottomPadding }}
+      >
+        {imageUrl ? (
+          <Image
+            source={{ uri: imageUrl }}
+            style={{
+              width: '100%',
+              flex: 1,
+              borderRadius: 24,
+            }}
+            contentFit="cover"
+          />
+        ) : (
+          <View
+            className="w-full bg-gray-200 dark:bg-zinc-700 rounded-3xl items-center justify-center"
+            style={{ flex: 1 }}
+          >
+            <ThemedText className="text-base text-gray-500 dark:text-zinc-400">
+              No cover
+            </ThemedText>
+          </View>
+        )}
       </View>
+    </View>
+  );
+}
+
+function PageSlide({
+  page,
+  progress,
+}: {
+  page: BookPagePayload;
+  progress: number;
+}) {
+  const insets = useSafeAreaInsets();
+  // Bottom padding clears the page indicator + a comfortable reading
+  // gap so the last line of text never butts up against the dots.
+  const scrollBottomPadding = Math.max(insets.bottom, 8) + 40;
+  return (
+    <View className="flex-1">
+      <SlideHeader title={page.title} narrate={false} progress={progress} />
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{
+          paddingHorizontal: 24,
+          paddingTop: 32,
+          paddingBottom: scrollBottomPadding,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
+        {page.imageUrl ? (
+          <Image
+            source={{ uri: page.imageUrl }}
+            style={{
+              width: '100%',
+              aspectRatio: 1,
+              borderRadius: 24,
+            }}
+            contentFit="cover"
+          />
+        ) : (
+          <View className="w-full aspect-square bg-gray-100 dark:bg-zinc-800 rounded-3xl items-center justify-center">
+            <ThemedText className="text-sm text-gray-400 dark:text-zinc-500">
+              Image coming…
+            </ThemedText>
+          </View>
+        )}
+        <NarratedText
+          text={page.content}
+          progress={progress}
+          className="text-xl text-black dark:text-white leading-8 mt-5"
+        />
+      </ScrollView>
     </View>
   );
 }
@@ -401,8 +549,10 @@ function ChoicesSlide({
               disabled={isDisabled}
               onPress={() => onPick(choice.choiceIndex)}
               className={cn(
-                'bg-white border rounded-2xl overflow-hidden',
-                isPending ? 'border-black' : 'border-gray-200',
+                'bg-white dark:bg-zinc-900 border rounded-2xl overflow-hidden',
+                isPending
+                  ? 'border-black dark:border-white'
+                  : 'border-gray-200 dark:border-zinc-700',
                 isDisabled && !isPending && 'opacity-50',
               )}
             >
@@ -461,7 +611,7 @@ function PageIndicator({ current, total }: { current: number; total: number }) {
           className={cn(
             'h-1.5 rounded-full',
             i === current
-              ? 'w-6 bg-black'
+              ? 'w-6 bg-black dark:bg-white'
               : 'w-1.5 bg-gray-300 dark:bg-zinc-600',
           )}
         />

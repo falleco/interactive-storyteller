@@ -4,12 +4,16 @@ import {
   useAudioPlayer,
   useAudioPlayerStatus,
 } from 'expo-audio';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export interface UseBookAudioResult {
   isPlaying: boolean;
   isLoading: boolean;
   hasSource: boolean;
+  /** Current playback position in seconds (0 when not loaded). */
+  currentTime: number;
+  /** Total duration in seconds (0 when not loaded). */
+  duration: number;
   toggle: () => void;
   /** Reset playback head to zero and pause. */
   reset: () => void;
@@ -35,6 +39,23 @@ export function useBookAudio(options: UseBookAudioOptions): UseBookAudioResult {
   const previousSourceRef = useRef<string | null>(null);
   const didCompleteRef = useRef(false);
   const { source, autoPlay = true, onComplete } = options;
+
+  // Synchronously track the source the caller asked for so we can gate
+  // `currentTime`/`duration` until the player actually loads it. Without
+  // this, the first render after a source change still returns the
+  // *previous* source's status (the status hook hasn't caught up yet) —
+  // narration-driven UI would flash a stale 100%-progress frame.
+  const [trackedSource, setTrackedSource] = useState<string | null>(null);
+  if (trackedSource !== (source ?? null)) {
+    setTrackedSource(source ?? null);
+  }
+
+  // Set to the source whose status we've confirmed is loaded. Until
+  // status reports `isLoaded` with a fresh `currentTime` for the current
+  // tracked source we treat playback as not-yet-started.
+  const [statusReadyFor, setStatusReadyFor] = useState<string | null>(null);
+  const statusIsFresh =
+    statusReadyFor === trackedSource && trackedSource !== null;
 
   // Swap source on change. expo-audio supports both string and { uri } forms.
   useEffect(() => {
@@ -81,9 +102,21 @@ export function useBookAudio(options: UseBookAudioOptions): UseBookAudioResult {
     };
   }, [player]);
 
-  // Detect natural completion.
+  // Detect natural completion + mark the status as "fresh for the current
+  // source" once it reflects a newly-loaded clip.
   useEffect(() => {
     if (!status) return;
+    // Heuristic: a freshly-loaded source emits an `isLoaded` status with
+    // a known duration and `currentTime` close to zero. Once we see that,
+    // it's safe to trust subsequent times against the active source.
+    if (
+      status.isLoaded &&
+      status.duration > 0 &&
+      status.currentTime < 1 &&
+      statusReadyFor !== trackedSource
+    ) {
+      setStatusReadyFor(trackedSource);
+    }
     // Re-arm completion once the *new* source is actually playing — see
     // the source-change effect above for why we start out suppressed.
     if (
@@ -99,7 +132,7 @@ export function useBookAudio(options: UseBookAudioOptions): UseBookAudioResult {
       didCompleteRef.current = true;
       onComplete?.();
     }
-  }, [status, onComplete]);
+  }, [status, onComplete, trackedSource, statusReadyFor]);
 
   const toggle = useCallback(() => {
     if (status?.playing) {
@@ -126,8 +159,14 @@ export function useBookAudio(options: UseBookAudioOptions): UseBookAudioResult {
 
   return {
     isPlaying: Boolean(status?.playing),
-    isLoading: Boolean(source) && !status?.isLoaded,
+    isLoading: Boolean(source) && !statusIsFresh,
     hasSource: Boolean(source),
+    // Only expose timings once we've confirmed the status reflects the
+    // currently-tracked source — otherwise we'd briefly leak the previous
+    // clip's finished `currentTime/duration` into the new slide.
+    currentTime:
+      statusIsFresh && status?.isLoaded ? (status.currentTime ?? 0) : 0,
+    duration: statusIsFresh && status?.isLoaded ? (status.duration ?? 0) : 0,
     toggle,
     reset,
   };
