@@ -1,4 +1,6 @@
-{
+import 'tsx/cjs';
+
+module.exports = () => ({
   "expo": {
     "name": "Wonder Tales",
     "slug": "wondertales",
@@ -86,11 +88,22 @@
         }
       ],
       "expo-image",
-      "expo-status-bar"
+      "expo-status-bar",
+      "./plugins/withPlugin.ts",
+      [
+        "expo-build-properties", {
+          "android": {
+            "minSdkVersion": 29,
+            "extraMavenRepos": [
+              "../../node_modules/@borndotcom/react-native-godot/android/libs/libgodot-android/4.5.1.migeran.2"
+            ]
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
     }
   }
-}
+})

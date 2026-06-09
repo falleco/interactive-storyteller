@@ -1,5 +1,6 @@
 import type { TabIconProps } from './core/tab-bar-button';
 import { FamilyIcon } from './icons/family-icon';
+import { GamesIcon } from './icons/games-icon';
 import { LibraryIcon } from './icons/library-icon';
 
 /**
@@ -17,5 +18,8 @@ export const icons = {
   ),
   family: ({ color, size = 26 }: TabIconProps) => (
     <FamilyIcon color={color} size={size} />
+  ),
+  games: ({ color, size = 26 }: TabIconProps) => (
+    <GamesIcon color={color} size={size} />
   ),
 };

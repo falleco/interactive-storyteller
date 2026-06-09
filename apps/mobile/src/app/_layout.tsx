@@ -74,6 +74,15 @@ export default function RootLayout() {
                       }}
                     />
                     <Stack.Screen
+                      name="demo/index"
+                      options={{
+                        orientation: 'landscape',
+                        presentation: 'card',
+                        animation: 'slide_from_right',
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
                       name="settings/templates/index"
                       options={{ headerShown: false }}
                     />
@@ -117,6 +126,14 @@ export default function RootLayout() {
                       options={{
                         presentation: 'card',
                         animation: 'slide_from_right',
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="games/[id]"
+                      options={{
+                        presentation: 'card',
+                        animation: 'slide_from_bottom',
                         headerShown: false,
                       }}
                     />

@@ -1,0 +1,85 @@
+import type { HiddenObjectGameConfig } from '@wondertales/shared';
+
+export const hiddenObjectsDemoConfig: HiddenObjectGameConfig = {
+  sceneId: 'starlit-garden',
+  sceneTitle: 'Starlit Garden',
+  targets: [
+    {
+      id: 'moon',
+      label: 'Moon',
+      prompt: 'Find the sleepy moon.',
+    },
+    {
+      id: 'key',
+      label: 'Key',
+      prompt: 'Find the tiny golden key.',
+    },
+    {
+      id: 'mushroom',
+      label: 'Mushroom',
+      prompt: 'Find the red mushroom.',
+    },
+    {
+      id: 'butterfly',
+      label: 'Butterfly',
+      prompt: 'Find the blue butterfly.',
+    },
+    {
+      id: 'star',
+      label: 'Star',
+      prompt: 'Find the bright star.',
+    },
+  ],
+  items: [
+    {
+      id: 'moon',
+      label: 'Moon',
+      prompt: 'Find the sleepy moon.',
+      x: 84,
+      y: 13,
+      visualSize: 128,
+      hitSize: 96,
+      tint: '#fde68a',
+    },
+    {
+      id: 'key',
+      label: 'Key',
+      prompt: 'Find the tiny golden key.',
+      x: 34,
+      y: 67,
+      visualSize: 126,
+      hitSize: 104,
+      tint: '#f59e0b',
+    },
+    {
+      id: 'mushroom',
+      label: 'Mushroom',
+      prompt: 'Find the red mushroom.',
+      x: 72,
+      y: 61,
+      visualSize: 130,
+      hitSize: 104,
+      tint: '#fb7185',
+    },
+    {
+      id: 'butterfly',
+      label: 'Butterfly',
+      prompt: 'Find the blue butterfly.',
+      x: 76,
+      y: 43,
+      visualSize: 128,
+      hitSize: 96,
+      tint: '#38bdf8',
+    },
+    {
+      id: 'star',
+      label: 'Star',
+      prompt: 'Find the bright star.',
+      x: 49,
+      y: 32,
+      visualSize: 94,
+      hitSize: 88,
+      tint: '#fef08a',
+    },
+  ],
+};

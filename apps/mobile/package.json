@@ -12,10 +12,13 @@
     "tsc": "tsc --noEmit",
     "test": "vitest --watch false --passWithNoTests",
     "test:dev": "vitest --watch true --passWithNoTests",
-    "test:ci": "vitest --watch false --passWithNoTests --coverage"
+    "test:ci": "vitest --watch false --passWithNoTests --coverage",
+    "download-prebuilt": "echo 'DOWNLOADING PREBUILTS...' && download-prebuilt",
+    "postinstall": "yarn run download-prebuilt"
   },
   "dependencies": {
     "@better-auth/expo": "^1.6.15",
+    "@borndotcom/react-native-godot": "^1.0.1",
     "@callstack/liquid-glass": "^0.8.0",
     "@expo/metro-runtime": "~56.0.14",
     "@expo/vector-icons": "^15.1.1",
@@ -31,6 +34,7 @@
     "expo-apple-authentication": "~56.0.4",
     "expo-asset": "~56.0.16",
     "expo-audio": "~56.0.11",
+    "expo-build-properties": "~56.0.17",
     "expo-clipboard": "~56.0.4",
     "expo-constants": "~56.0.17",
     "expo-file-system": "~56.0.7",
@@ -76,6 +80,7 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/babel__core": "^7",
+    "@types/node": "^24.0.0",
     "@types/react": "~19.2.14",
     "@vitejs/plugin-react": "^6.0.2",
     "happy-dom": "^20.10.2",
@@ -83,6 +88,7 @@
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "tailwindcss": "3.4.19",
+    "tsx": "^4.22.4",
     "typescript": "~6.0.3",
     "vite": "^8.0.16",
     "vitest": "^4.1.8"

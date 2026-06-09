@@ -53,6 +53,12 @@ export default function HomeTab() {
 
   const sidebarItems: SidebarItem[] = [
     {
+      id: 'demo',
+      label: 'Demo',
+      icon: 'gamepad-variant-outline',
+      onPress: () => router.push('/demo' as Href),
+    },
+    {
       id: 'templates',
       label: 'Templates',
       icon: 'note-edit-outline',
