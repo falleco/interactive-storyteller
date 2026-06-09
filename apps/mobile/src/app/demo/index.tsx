@@ -51,6 +51,7 @@ function pressAction(action: string) {
     try {
       const Godot = RTNGodot.API();
       const Input = Godot.Input;
+      console.log("Pressing action:", action);
       Input.action_press(action);
     } catch (error) {
       console.error("Error pressing action:", error);
@@ -64,6 +65,7 @@ function releaseAction(action: string) {
     try {
       const Godot = RTNGodot.API();
       const Input = Godot.Input;
+      console.log("Releasing action:", action);
       Input.action_release(action);
     } catch (error) {
       console.error("Error releasing action:", error);
