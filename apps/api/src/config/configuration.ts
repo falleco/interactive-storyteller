@@ -44,7 +44,10 @@ export const GetAppConfiguration = async () => {
       },
       models: {
         text: config.AI_TEXT_MODEL ?? 'gpt-4o-mini',
-        image: config.AI_IMAGE_MODEL ?? 'black-forest-labs/flux-2-klein-4b',
+        image:
+          config.AI_IMAGE_MODEL ?? // ??
+          'prunaai/z-image-turbo',
+        // ?? 'black-forest-labs/flux-2-klein-4b',
         speech: config.AI_SPEECH_MODEL ?? 'minimax/speech-2.8-turbo',
       },
     },

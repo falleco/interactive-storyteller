@@ -1,17 +1,17 @@
 import { expo } from '@better-auth/expo';
-import { PrismaClient } from '@prisma/client';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { APIError } from 'better-auth/api';
 import { bearer } from 'better-auth/plugins';
 import jwt from 'jsonwebtoken';
+import { createPrismaClient } from '../prisma/create-prisma-client';
 import {
   getUserEventsQueue,
   type UserCreatedJobData,
   UserEventJobName,
 } from '../queue/user-events.queue';
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 function readEnv(name: string): string {
   const value = process.env[name];

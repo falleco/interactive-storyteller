@@ -7,10 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "wondertales",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "assetBundlePatterns": [
-      "assets/images/**/*"
-    ],
+    "assetBundlePatterns": ["assets/images/**/*"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.wondertalesai.app",
@@ -37,7 +34,6 @@
         "android.permission.READ_MEDIA_VIDEO",
         "android.permission.READ_MEDIA_AUDIO"
       ],
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.wondertalesai.app"
     },
@@ -88,7 +84,9 @@
           "savePhotosPermission": "Wonder Tales saves story illustrations to your photo library.",
           "isAccessMediaLocationEnabled": false
         }
-      ]
+      ],
+      "expo-image",
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": true,

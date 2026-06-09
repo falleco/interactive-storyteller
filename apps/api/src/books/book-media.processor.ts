@@ -70,11 +70,15 @@ export class BookMediaProcessor extends WorkerHost {
       where: { id: job.data.bookId },
       select: { id: true, coverImagePrompt: true, storyBible: true },
     });
-    // Prefer the bible's coverImagePrompt (style+world+character baked in)
-    // over the legacy column. Fall back to the legacy text for pre-bible
-    // books so they still render.
+    // Prefer the bible (full structured context: style + world + main
+    // + other characters + the cover-specific prompt baked at bible
+    // generation time). Fall back to the legacy `coverImagePrompt`
+    // column for pre-bible books so they still render — those won't
+    // get the JSON context, only the raw prompt.
     const bible = extractBible(book?.storyBible);
-    const prompt = bible?.coverImagePrompt ?? book?.coverImagePrompt;
+    const prompt = bible
+      ? composeImagePrompt(bible, bible.coverImagePrompt)
+      : book?.coverImagePrompt;
     if (!book || !prompt) {
       this.logger.warn(`Book ${job.data.bookId}: no coverImagePrompt`);
       return;
@@ -98,6 +102,9 @@ export class BookMediaProcessor extends WorkerHost {
       data: {
         coverImageUrl: stored.url,
         coverImageObjectKey: stored.key,
+        // Persist the *exact* prompt that produced the asset above so
+        // we can audit / re-render with the same input later.
+        finalCoverImagePrompt: prompt,
       },
     });
     this.logger.log(`Book ${book.id}: cover image ready`);
@@ -194,6 +201,7 @@ export class BookMediaProcessor extends WorkerHost {
       data: {
         imageUrl: stored.url,
         imageObjectKey: stored.key,
+        finalImagePrompt: prompt,
       },
     });
     this.logger.log(`Page ${page.id} (book ${page.bookId}): image ready`);
@@ -303,6 +311,7 @@ export class BookMediaProcessor extends WorkerHost {
       data: {
         imageUrl: stored.url,
         imageObjectKey: stored.key,
+        finalImagePrompt: prompt,
       },
     });
     this.logger.log(

@@ -9,7 +9,7 @@ import {
 import type { Book, Prisma } from '@prisma/client';
 import type { Queue } from 'bullmq';
 import { GameMasterService } from '../game-master/game-master.service';
-import { STORY_PAGE_COUNT } from '../game-master/prompts';
+import { composeImagePrompt, STORY_PAGE_COUNT } from '../game-master/prompts';
 import type { InteractivePageHistory, StoryBible } from '../game-master/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { StoryTemplatesService } from '../story-templates/story-templates.service';
@@ -179,6 +179,14 @@ export class BookGenerationService {
         // queries still work; the bible JSON is the source of truth.
         characterDescription: bible.mainCharacters,
         coverImagePrompt: bible.coverImagePrompt,
+        // Snapshot the *final* prompts the media processor will send
+        // up-front — at row-create time — so they're inspectable even
+        // before the image job runs, and if a generation fails the
+        // exact text that would have been sent is still on disk.
+        finalCoverImagePrompt: composeImagePrompt(
+          bible,
+          bible.coverImagePrompt,
+        ),
         promptTokens,
         completionTokens,
         totalTokens,
@@ -190,6 +198,9 @@ export class BookGenerationService {
             content: page.content,
             narrationText: page.content,
             imagePrompt: page.imagePrompt,
+            finalImagePrompt: page.imagePrompt
+              ? composeImagePrompt(bible, page.imagePrompt)
+              : null,
           })),
         },
       },
@@ -270,6 +281,10 @@ export class BookGenerationService {
         storyBible: bible as unknown as Prisma.InputJsonValue,
         characterDescription: bible.mainCharacters,
         coverImagePrompt: bible.coverImagePrompt,
+        finalCoverImagePrompt: composeImagePrompt(
+          bible,
+          bible.coverImagePrompt,
+        ),
         promptTokens,
         completionTokens,
         totalTokens,
@@ -281,11 +296,17 @@ export class BookGenerationService {
             content: page.content,
             narrationText: page.content,
             imagePrompt: page.imagePrompt,
+            finalImagePrompt: page.imagePrompt
+              ? composeImagePrompt(bible, page.imagePrompt)
+              : null,
             choices: {
               create: page.choices.map((choice, idx) => ({
                 choiceIndex: idx,
                 label: choice.label,
                 imagePrompt: choice.imagePrompt || null,
+                finalImagePrompt: choice.imagePrompt
+                  ? composeImagePrompt(bible, choice.imagePrompt)
+                  : null,
               })),
             },
           },
@@ -417,11 +438,17 @@ export class BookGenerationService {
         content: next.content,
         narrationText: next.content,
         imagePrompt: next.imagePrompt,
+        finalImagePrompt: next.imagePrompt
+          ? composeImagePrompt(bible, next.imagePrompt)
+          : null,
         choices: {
           create: next.choices.map((choice, idx) => ({
             choiceIndex: idx,
             label: choice.label,
             imagePrompt: choice.imagePrompt || null,
+            finalImagePrompt: choice.imagePrompt
+              ? composeImagePrompt(bible, choice.imagePrompt)
+              : null,
           })),
         },
       },

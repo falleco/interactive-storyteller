@@ -3,7 +3,7 @@ name: wonder-tales-ai
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: app-postgres
+    container_name: wt-postgres
     restart: unless-stopped
     ports:
       - "55432:5432"
@@ -21,7 +21,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: app-redis
+    container_name: wt-redis
     restart: unless-stopped
     ports:
       - "56379:6379"

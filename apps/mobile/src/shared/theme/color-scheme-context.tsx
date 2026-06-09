@@ -23,6 +23,7 @@ import {
 } from 'react';
 import { Dimensions, StyleSheet, View } from 'react-native';
 import {
+  runOnJS,
   type SharedValue,
   useDerivedValue,
   useSharedValue,
@@ -84,7 +85,8 @@ interface InternalState {
 interface ColorSchemeContextValue extends InternalState {
   ref: RefObject<View | null>;
   transition: SharedValue<number>;
-  circle: SharedValue<{ x: number; y: number; r: number }>;
+  circleCenter: SharedValue<{ x: number; y: number }>;
+  circleRadius: SharedValue<number>;
   dispatch: (state: InternalState) => void;
 }
 
@@ -118,7 +120,8 @@ const corners = [vec(0, 0), vec(width, 0), vec(width, height), vec(0, height)];
 
 export function ColorSchemeProvider({ children }: Props) {
   const ref = useRef<View>(null);
-  const circle = useSharedValue({ x: width / 2, y: height / 2, r: 0 });
+  const circleCenter = useSharedValue({ x: width / 2, y: height / 2 });
+  const circleRadius = useSharedValue(0);
   const transition = useSharedValue(0);
   const [state, dispatch] = useReducer(reducer, initialState);
 
@@ -141,10 +144,9 @@ export function ColorSchemeProvider({ children }: Props) {
       cancelled = true;
     };
     // We intentionally only run this once.
-    // biome-ignore lint/correctness/useExhaustiveDependencies: bootstrap-only effect
   }, []);
 
-  const r = useDerivedValue(() => mix(transition.value, 0, circle.value.r));
+  const r = useDerivedValue(() => mix(transition.value, 0, circleRadius.value));
 
   return (
     <View style={styles.root}>
@@ -153,13 +155,20 @@ export function ColorSchemeProvider({ children }: Props) {
       <StatusBar style={state.statusBarStyle} />
       <View ref={ref} style={styles.fill} collapsable={false}>
         <ColorSchemeReactContext.Provider
-          value={{ ...state, dispatch, ref, transition, circle }}
+          value={{
+            ...state,
+            dispatch,
+            ref,
+            transition,
+            circleCenter,
+            circleRadius,
+          }}
         >
           {children}
         </ColorSchemeReactContext.Provider>
       </View>
       {/* Overlay canvas — only mounted *during* the snapshot-driven
-          theme transition. RN 0.81 Fabric on Android doesn't reliably
+          theme transition. RN Fabric on Android doesn't reliably
           propagate the JSX `pointerEvents="none"` prop to Skia's
           `<Canvas>` host view, so leaving it mounted at root would
           capture every touch across the app and the user couldn't tap
@@ -177,7 +186,7 @@ export function ColorSchemeProvider({ children }: Props) {
             height={height}
           />
           {state.overlay2 && (
-            <Circle c={circle} r={r}>
+            <Circle c={circleCenter} r={r}>
               <ImageShader
                 image={state.overlay2}
                 x={0}
@@ -211,7 +220,15 @@ export function useColorSchemeContext() {
       'useColorSchemeContext must be used inside <ColorSchemeProvider>',
     );
   }
-  const { scheme, dispatch, ref, transition, circle, active } = ctx;
+  const {
+    scheme,
+    dispatch,
+    ref,
+    transition,
+    circleCenter,
+    circleRadius,
+    active,
+  } = ctx;
 
   const toggle = useCallback(
     async (x: number, y: number) => {
@@ -232,7 +249,8 @@ export function useColorSchemeContext() {
       });
 
       const maxRadius = Math.max(...corners.map((c) => dist(c, { x, y })));
-      circle.value = { x, y, r: maxRadius };
+      circleCenter.value = { x, y };
+      circleRadius.value = maxRadius;
       transition.value = 0;
 
       // 1. Snapshot the current theme.
@@ -283,12 +301,22 @@ export function useColorSchemeContext() {
       await wait(PRE_SNAPSHOT_FRAME_WAIT_MS);
 
       // 6. Animate. When the circle covers the screen, we're done.
-      transition.value = 0;
-      transition.value = withTiming(1, { duration: TRANSITION_DURATION });
+      await new Promise<void>((resolve) => {
+        transition.value = 0;
+        transition.value = withTiming(
+          1,
+          { duration: TRANSITION_DURATION },
+          (finished) => {
+            if (finished) {
+              runOnJS(resolve)();
+            }
+          },
+        );
+      });
       // Let the reveal mostly play out before flipping the status bar so
       // the text colour swaps right as the new theme is fully on screen
       // (not in the middle of the circle expansion).
-      await wait(TRANSITION_DURATION + 30);
+      await wait(30);
       dispatch({
         active: false,
         scheme: next,
@@ -297,7 +325,7 @@ export function useColorSchemeContext() {
         overlay2: null,
       });
     },
-    [active, scheme, dispatch, ref, transition, circle],
+    [active, scheme, dispatch, ref, transition, circleCenter, circleRadius],
   );
 
   return { scheme, toggle, active };

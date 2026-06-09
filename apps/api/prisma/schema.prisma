@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -139,6 +138,10 @@ model Book {
   storyBible           Json?         @map("story_bible")
   characterDescription String?       @map("character_description")
   coverImagePrompt     String?       @map("cover_image_prompt")
+  /// Final composed prompt actually sent to the image model for the
+  /// cover (`composeImagePrompt(bible, bible.coverImagePrompt)`). Kept
+  /// for auditing/debugging so we know exactly what produced the cover.
+  finalCoverImagePrompt String?      @map("final_cover_image_prompt")
   coverImageUrl        String?       @map("cover_image_url")
   coverImageObjectKey  String?       @map("cover_image_object_key")
   titleAudioUrl        String?       @map("title_audio_url")
@@ -173,6 +176,10 @@ model BookPage {
   textAssetUrl       String?  @map("text_asset_url")
   textAssetObjectKey String?  @map("text_asset_object_key")
   imagePrompt        String?  @map("image_prompt")
+  /// Final composed prompt actually sent to the image model
+  /// (`composeImagePrompt(bible, page.imagePrompt)`). Persisted for
+  /// auditing — the raw `imagePrompt` above is just the scene part.
+  finalImagePrompt   String?  @map("final_image_prompt")
   imageUrl           String?  @map("image_url")
   imageObjectKey     String?  @map("image_object_key")
   audioUrl           String?  @map("audio_url")
@@ -194,6 +201,9 @@ model BookChoice {
   choiceIndex    Int      @map("choice_index")
   label          String
   imagePrompt    String?  @map("image_prompt")
+  /// Final composed prompt actually sent to the image model for this
+  /// choice card (`composeImagePrompt(bible, choice.imagePrompt)`).
+  finalImagePrompt String? @map("final_image_prompt")
   imageUrl       String?  @map("image_url")
   imageObjectKey String?  @map("image_object_key")
   selected       Boolean  @default(false)

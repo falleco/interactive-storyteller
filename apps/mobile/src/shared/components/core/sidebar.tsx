@@ -201,7 +201,7 @@ function SidebarRow({
 
 const styles = StyleSheet.create({
   overlayRoot: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     // High zIndex so we sit above route content and the tab bar; the
     // ColorScheme overlay Canvas is still above us, which is what we want
     // — the snapshot transition needs to mask over the sidebar too.
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
     elevation: 100,
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
   panelBase: {

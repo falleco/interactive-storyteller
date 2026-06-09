@@ -5,11 +5,8 @@ import type { SymbolViewProps, SymbolWeight } from 'expo-symbols';
 import type { ComponentProps } from 'react';
 import type { OpaqueColorValue, StyleProp, TextStyle } from 'react-native';
 
-type IconMapping = Record<
-  SymbolViewProps['name'],
-  ComponentProps<typeof MaterialIcons>['name']
->;
-type IconSymbolName = keyof typeof MAPPING;
+type ExpoSymbolName = Extract<SymbolViewProps['name'], string>;
+type MaterialIconName = ComponentProps<typeof MaterialIcons>['name'];
 
 /**
  * Add your SF Symbols to Material Icons mappings here.
@@ -25,7 +22,8 @@ const MAPPING = {
   'person.fill': 'person',
   'person.2.fill': 'people',
   'books.vertical.fill': 'auto-stories',
-} as IconMapping;
+} as const satisfies Partial<Record<ExpoSymbolName, MaterialIconName>>;
+type IconSymbolName = keyof typeof MAPPING;
 
 /**
  * An icon component that uses native SF Symbols on iOS, and Material Icons on Android and web.

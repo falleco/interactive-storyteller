@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from '../src/prisma/create-prisma-client';
 import {
   getStorytellerPortraitUrl,
   getStorytellerPreviewAudioUrl,
@@ -6,7 +6,7 @@ import {
   SUPPORTED_LANGUAGES,
 } from '../src/storytellers/storyteller-catalog';
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 async function seedStorytellers() {
   console.log('Seeding storytellers…');

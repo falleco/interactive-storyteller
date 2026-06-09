@@ -20,6 +20,33 @@ export interface UseBooksResult {
   chooseNext: (input: { bookId: string; choiceIndex: number }) => Promise<void>;
 }
 
+/**
+ * Module-level pub-sub so multiple `useBooks` instances (library tab,
+ * wonder-sheet wizard, family tab stats) stay in sync. Without this,
+ * a `create` from the wonder-sheet only mutates its own local state
+ * and the library has to wait for the next `useFocusEffect` tick to
+ * notice — which feels like "I had to pull-to-refresh to see the
+ * new story" from the user's perspective.
+ */
+const bookListeners = new Set<() => void>();
+function notifyBooksChanged(): void {
+  for (const listener of bookListeners) listener();
+}
+
+/**
+ * Patcher pub-sub: a SECOND channel that lets a single book be updated
+ * in-place across every mounted `useBooks` list without refetching.
+ * Mainly fed by `useBookDetail`'s SSE snapshot stream — when the cover
+ * image finishes rendering or the book flips status, those changes
+ * land directly in the library list, so navigating back doesn't show
+ * a stale "no cover" emoji until the user pulls to refresh.
+ */
+type BookPatchListener = (id: string, patch: Partial<BookSummary>) => void;
+const bookPatchListeners = new Set<BookPatchListener>();
+export function applyBookPatch(id: string, patch: Partial<BookSummary>): void {
+  for (const listener of bookPatchListeners) listener(id, patch);
+}
+
 export function useBooks(): UseBooksResult {
   const api = useApi();
   const { user } = useAuth();
@@ -48,6 +75,35 @@ export function useBooks(): UseBooksResult {
     refresh();
   }, [refresh]);
 
+  // Wake this instance whenever any other `useBooks` mutates the list
+  // (create / remove). Re-fetches against the server so the optimistic
+  // change made by another instance is reconciled with authoritative
+  // data and ordering.
+  useEffect(() => {
+    const listener = () => {
+      refresh();
+    };
+    bookListeners.add(listener);
+    return () => {
+      bookListeners.delete(listener);
+    };
+  }, [refresh]);
+
+  // Targeted in-place patches (e.g. cover image arrived for an
+  // in-flight book via SSE). Avoids re-fetching the whole list — the
+  // patch payload is whatever fields the snapshot stream pushes.
+  useEffect(() => {
+    const listener: BookPatchListener = (id, patch) => {
+      setBooks((prev) =>
+        prev.map((b) => (b.id === id ? { ...b, ...patch } : b)),
+      );
+    };
+    bookPatchListeners.add(listener);
+    return () => {
+      bookPatchListeners.delete(listener);
+    };
+  }, []);
+
   const create = useCallback(
     async (input: CreateBookInput) => {
       const created = await api.post<CreatedBookResponse>('/books', input);
@@ -68,6 +124,7 @@ export function useBooks(): UseBooksResult {
         },
         ...prev,
       ]);
+      notifyBooksChanged();
       return created;
     },
     [api],
@@ -93,6 +150,7 @@ export function useBooks(): UseBooksResult {
     async (id: string) => {
       await api.delete<void>(`/books/${id}`);
       setBooks((prev) => prev.filter((b) => b.id !== id));
+      notifyBooksChanged();
     },
     [api],
   );
@@ -177,6 +235,18 @@ export function useBookDetail(
         const detail = JSON.parse(event.data) as BookDetail;
         setBook(detail);
         setIsLoading(false);
+        // Mirror the BookSummary-shaped fields into any open `useBooks`
+        // list — so when the cover image finishes rendering or the
+        // status flips, the library/family screens already have the
+        // fresh data when the user navigates back.
+        applyBookPatch(detail.id, {
+          title: detail.title,
+          status: detail.status,
+          coverImageUrl: detail.coverImageUrl,
+          pageCount: detail.pageCount,
+          completedReadCount: detail.completedReadCount,
+          updatedAt: detail.updatedAt,
+        });
       } catch (e) {
         setError(
           e instanceof Error ? e : new Error('Bad SSE payload from server'),

@@ -44,9 +44,7 @@ async function main() {
     console.log(
       `Bull Board ready at http://localhost:${BULL_BOARD_PORT}${BULL_BOARD_PATH}`,
     );
-    console.log(
-      `Watching queues: ${QUEUE_NAMES.join(', ')} on ${REDIS_URL}`,
-    );
+    console.log(`Watching queues: ${QUEUE_NAMES.join(', ')} on ${REDIS_URL}`);
   });
 
   const shutdown = async () => {

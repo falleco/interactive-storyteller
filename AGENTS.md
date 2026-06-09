@@ -6,8 +6,9 @@ Yarn 4 monorepo: Expo mobile + NestJS API. This document captures non-obvious de
 
 ```
 apps/
-  mobile/   Expo SDK 54, React Native 0.81, expo-router, NativeWind, Hermes
-  api/      NestJS 11, Prisma 6, Better Auth, BullMQ, cache-manager v6
+  mobile/   Expo SDK 56, React Native 0.85, expo-router, NativeWind, Hermes
+  api/      NestJS 11, Prisma 7, Better Auth, BullMQ, cache-manager v7
+  builder/  planned web app for story/game creation workflows (not scaffolded yet)
 packages/
   shared/   Types-only package (no build step — main/types point at src/*.ts)
 ```
@@ -15,10 +16,19 @@ packages/
 ## Tooling
 
 - **Package manager**: Yarn 4 (`nodeLinker: node-modules`). Never enable PnP — RN/Expo doesn't tolerate it.
-- **Lint/format**: Biome 2 at repo root (`biome.json`). Single config governs everything. Run `yarn check:fix`.
-- **TypeScript**: each workspace has its own `tsconfig.json`. The API uses `rootDir: ./src` + `tsBuildInfoFile: ./dist/.tsbuildinfo` so stale incremental cache gets deleted by Nest's `deleteOutDir`.
+- **Lint/format**: Biome 2.4 at repo root (`biome.json`). Single config governs everything. Run `yarn check:fix`.
+- **TypeScript**: TS 6.0. Each workspace has its own `tsconfig.json`. The API uses `rootDir: ./src` + `tsBuildInfoFile: ./dist/.tsbuildinfo` so stale incremental cache gets deleted by Nest's `deleteOutDir`.
 - **Tests**: NestJS-side specs live in `apps/api/src/**/__tests__/*.spec.ts` (alongside the file they test). E2E specs in `apps/api/test/*.e2e-spec.ts`. Transformer is `@swc/jest`, not `ts-jest` — see "Gotchas".
 - **Mobile tests**: vitest in `apps/mobile/`.
+- **Native dependency rule**: native/mobile packages live in `apps/mobile/package.json`, not shared packages. Web-only deps for the future builder should live in `apps/builder/package.json`.
+- **Expo upgrades**: use Expo tooling, not hand-edited version guessing. Start with `npx expo install --check`, then `npx expo install --fix` or explicit `npx expo install <packages>`, and finish with `npx expo-doctor@latest`.
+
+## Agent operating rules
+
+- Be token-frugal. Do not inspect logs, huge command output, full diffs, or generated files just to "be thorough"; collect and read them only after a concrete failure, suspicion, or verification need.
+- When controlling the mobile app, do not narrate every click, wait, snapshot, or intended next step. Execute the flow, verify the result, and report the outcome. Interrupt the user only when permission, credentials, device state, or an external decision is needed.
+- Prefer targeted checks over broad reads: use `rg`, scoped `sed`, focused snapshots, exact selectors/refs, and small diffs.
+- Keep local services clean. Stop Metro/API sessions and `docker compose down` after validation unless the user asked to leave them running.
 
 ## Auth — Better Auth
 
@@ -48,7 +58,9 @@ Rolling sessions. Defaults: `expiresIn: 7d`, `updateAge: 1d`. When a request com
 - Models follow Better Auth's expected shape (`User`, `Session`, `Account`, `Verification`) plus our `User.active` flag.
 - **SQL columns are snake_case** via `@map(...)`. Prisma client API stays camelCase. Don't drop the `@map`s.
 - Table names: singular lowercase (`user`, `session`, `account`, `verification`) via `@@map`.
-- IDE may flag the `url = env("DATABASE_URL")` line as deprecated — that's the Prisma 7 lint preview. The CLI (`prisma 6.19`) still requires it. Ignore the red squiggle.
+- Prisma 7 keeps `datasource db { provider = "postgresql" }` in `schema.prisma`; the datasource URL for CLI commands lives in [apps/api/prisma.config.ts](apps/api/prisma.config.ts).
+- Runtime Prisma clients must use the driver adapter from [apps/api/src/prisma/create-prisma-client.ts](apps/api/src/prisma/create-prisma-client.ts) (`@prisma/adapter-pg`). Do not instantiate `new PrismaClient()` directly in app code unless you pass `createPrismaClientOptions()`.
+- [create-prisma-client.ts](apps/api/src/prisma/create-prisma-client.ts) imports `dotenv/config` intentionally. Better Auth and the Prisma singleton initialize at module load time, before Nest's `ConfigModule` exists, so `DATABASE_URL` must already be loaded.
 
 ## ConfigService
 
@@ -68,7 +80,7 @@ The `true` second generic makes `getOrThrow` return non-undefined types. Always 
 
 ## Cache
 
-Cache-manager v6 with Keyv stores. Configured in [cache.configuration.ts](apps/api/src/config/cache.configuration.ts) as `CacheConfigFactory implements CacheOptionsFactory`, registered globally in [app.module.ts](apps/api/src/app.module.ts) via `CacheModule.registerAsync({ useClass: CacheConfigFactory })`. TTL stored in seconds in config, multiplied by 1000 when passed to Keyv (which uses ms).
+Cache-manager v7 with Keyv stores. Configured in [cache.configuration.ts](apps/api/src/config/cache.configuration.ts) as `CacheConfigFactory implements CacheOptionsFactory`, registered globally in [app.module.ts](apps/api/src/app.module.ts) via `CacheModule.registerAsync({ useClass: CacheConfigFactory })`. TTL stored in seconds in config, multiplied by 1000 when passed to Keyv (which uses ms).
 
 ```ts
 @Inject(CACHE_MANAGER) private cache: Cache;
@@ -120,6 +132,29 @@ const me = await api.get<MeResponse>('/me');
 
 `ApiError` thrown by the helper has `{ status, code, message, body }` — `code: 'ACCOUNT_INACTIVE'` and similar Better Auth error codes bubble through unchanged.
 
+## Mobile — Structural rules for stories + games
+
+The app is moving toward static books, dynamic books, and games embedded inside story flows. Keep these boundaries sharp:
+
+- Route files stay in `apps/mobile/src/app`; domain UI belongs in `apps/mobile/src/features/<domain>/`; reusable primitives stay in `apps/mobile/src/shared/`.
+- Book playback should consume a neutral slide/story model (cover, page, choice, game, loading, end). Do not wire generic book-player code directly to one game implementation.
+- Put game UIs under `apps/mobile/src/features/games/<game-id>/`. Put reusable game rules, validation, seed data, scoring, and story-game contracts in pure TypeScript modules so the API and future builder can reuse them.
+- For games with established rules, physics, parsing, or AI logic, use a proven library for core logic. Keep custom code focused on adaptation, presentation, narration, and kid-friendly interaction.
+- Use stable dimensions for game boards, tiles, controls, canvases, and counters (`aspectRatio`, fixed grid tracks, min/max constraints). Hover/press/loading states must not resize the layout.
+- Prefer `FlatList`/FlashList-style virtualization for unbounded collections. `ScrollView` is fine for detail pages, bounded wizard content, or book pages where the content size is naturally small.
+- Use `expo-image` for remote/media-heavy images, `Pressable` for basic taps, and Gesture Handler/Reanimated for continuous gestures or game interactions.
+- Keep full-screen overlays as root siblings through host-singleton providers, like `SidebarHost` and `WonderSheetHost`, so tabs/screen containers do not clip them.
+- Native-only packages stay out of `packages/shared` and any future builder workspace. Shared packages must remain safe for Node, web, and React Native unless explicitly platform-scoped.
+
+## Builder — planned web app
+
+`apps/builder` is not scaffolded yet. When it is added, treat it as a separate web workspace for authoring stories, templates, and game integrations.
+
+- The builder should call the API for generation and persistence; do not duplicate generation orchestration in mobile.
+- Share contracts through `packages/shared` or a future pure-TS package such as `packages/story-engine` / `packages/games`.
+- Keep platform UI separate: mobile game views live in `apps/mobile`, builder editors/previews live in `apps/builder`, and shared logic stays renderer-agnostic.
+- Story/game descriptors should be serializable so the API can persist them and both mobile and builder can preview the same structure.
+
 ## Mobile — Host-singleton pattern for full-screen overlays
 
 [apps/mobile/src/shared/components/core/sidebar-host.tsx](apps/mobile/src/shared/components/core/sidebar-host.tsx) and [apps/mobile/src/shared/components/core/wonder-sheet-host.tsx](apps/mobile/src/shared/components/core/wonder-sheet-host.tsx) are mounted near the root in [_layout.tsx](apps/mobile/src/app/_layout.tsx), wrapping `<Stack>`. Each exposes a context (`useSidebar`, `useWonderSheet`) with `open/close/toggle`. The singleton overlay sits as a sibling of `{children}` so it can extend full-screen — overlays mounted inside a tab-bar / screen container get clipped by the container's geometry. Same pattern for any future modal-ish UI that needs to escape its parent.
@@ -128,7 +163,7 @@ Order in [_layout.tsx](apps/mobile/src/app/_layout.tsx): `SidebarHost > WonderSh
 
 ## Mobile — Skia + Fabric + Android `pointerEvents` gotcha
 
-RN 0.81 + Fabric on Android does **not** reliably propagate the JSX `pointerEvents` prop to Skia's `<Canvas>` host view. A `<Canvas pointerEvents="none" style={StyleSheet.absoluteFill}>` left mounted at root absorbs every touch on the screen, making the whole app feel frozen. Two specific bugs we hit and fixed:
+RN Fabric on Android does **not** reliably propagate the JSX `pointerEvents` prop to Skia's `<Canvas>` host view. A `<Canvas pointerEvents="none" style={StyleSheet.absoluteFill}>` left mounted at root absorbs every touch on the screen, making the whole app feel frozen. Two specific bugs we hit and fixed:
 
 1. **[color-scheme-context.tsx](apps/mobile/src/shared/theme/color-scheme-context.tsx)** — the theme-transition Canvas used to be mounted always. Fix: gate it on `state.overlay1 != null` so it only mounts during the transition.
 2. **[wonder-sheet.tsx](apps/mobile/src/shared/components/core/wonder-sheet.tsx)** — the sheet's Skia blob Canvas is now inside `{overlayMounted ? ... : null}` so it only mounts while the sheet is open or animating. When closed, only the FAB is rendered.
@@ -211,17 +246,21 @@ To add tools, drop more buttons in [apps/mobile/src/app/dev-menu.tsx](apps/mobil
 [apps/mobile/metro.config.js](apps/mobile/metro.config.js):
 - `watchFolders: [workspaceRoot]` so Metro sees `packages/shared` changes.
 - `nodeModulesPaths` includes both `apps/mobile/node_modules` and root `node_modules`.
+- Do not use Expo web as the validation target for this app. The mobile app will use native-only libraries that do not support web; validate screens in Expo Go, a development build, or Simulator/device.
 - **DO NOT set `disableHierarchicalLookup: true`**. We had this once. It broke `webidl-conversions` resolution: Expo's `whatwg-url-without-unicode` requires `webidl-conversions@5` (nested, OK) but the flag forced everything to resolve from root, hitting `webidl-conversions@8.0.1` (brought by jsdom dev-dep) which crashes Hermes with "Property 'SharedArrayBuffer' doesn't exist". Hours of debugging. Leave the default.
 
 ## Mobile — Native config
 
-`scheme: wondertales`, `bundleIdentifier: com.wondertalesai.app`. Apple Sign In capability requires `ios.usesAppleSignIn: true`. After changing the bundle, do **not** trust `expo prebuild --clean` — it sometimes preserves the old `ios/` folder. Brute force:
+`scheme: wondertales`, `bundleIdentifier: com.wondertalesai.app`. Apple Sign In capability requires `ios.usesAppleSignIn: true`. Expo SDK 56 requires iOS deployment target 16.4, which the Expo prebuild template sets in the generated native project.
+
+Generated native folders live under `apps/mobile/ios` and `apps/mobile/android` and are ignored by git. If an SDK/RN upgrade leaves stale native code behind, regenerate from the mobile workspace:
 ```bash
 cd apps/mobile
-rm -rf ios android .expo/prebuild
 npx expo prebuild --clean
 yarn ios
 ```
+
+The old root-level `ios/` and `android/` folders are legacy and should not be used by root scripts. Run native commands through the mobile workspace (`yarn workspace @wondertales/mobile ios` / `android`) or the root forwarding scripts.
 
 ## Testing
 
@@ -241,6 +280,76 @@ Both unit and e2e configs use **`@swc/jest`** (not `ts-jest`). Why:
 - `transform` regex must be `^.+\\.(ts|tsx|js|jsx|mjs|cjs)$` — the shorthand `(t|j|c|m)s` does NOT match `.mjs` (it would mean `.ts`/`.js`/`.cs`/`.ms`).
 - `transformIgnorePatterns` must allow-list every ESM-only package in the dep chain, including transitive ones. Current list: `better-auth, @better-auth, better-call, @better-fetch, rou3, jose, @noble, @scure, nanoid, uncrypto, defu, consola, ofetch, pathe, destr, ufo, keyv, @keyv, cacheable`. If a new dep breaks the test with `Unexpected token 'export'` or `import statement outside a module`, add it here.
 - SWC config in both jest blocks has `legacyDecorator: true, decoratorMetadata: true` — required for NestJS decorators.
+
+## Runtime validation runbook
+
+Use this when you need maximum confidence before changing bigger product flows:
+
+```bash
+# Dependencies / static checks
+yarn install --immutable
+yarn check
+yarn tsc
+yarn workspaces foreach -A --exclude @wondertales/root run test
+
+# Docker services
+docker compose up -d
+docker compose ps
+docker compose exec postgres pg_isready -U postgres -d app
+docker compose exec postgres psql -U postgres -d app -c '\dt'
+
+# API
+yarn workspace @wondertales/api prisma:generate
+yarn dev:api
+curl http://localhost:4000/health
+
+# Mobile
+yarn workspace @wondertales/mobile start --clear
+yarn workspace @wondertales/mobile ios
+npx expo-doctor@latest
+
+# Cleanup when local services are no longer needed
+docker compose down
+```
+
+Notes:
+- In Codex sandboxed runs, local network access to Docker/localhost may need escalation.
+- API e2e tests require Postgres + Redis from Docker.
+- Prisma CLI commands read `apps/api/prisma.config.ts`. If `prisma migrate deploy/status` returns a generic schema-engine error, first verify the DB with `psql`, `prisma:generate`, API boot, and `/health`; then investigate Prisma CLI/engine compatibility instead of changing the schema back to Prisma 6 style.
+- For visual validation, use the native app target: Simulator/device screenshots, Expo Go, or a development build. Do not use Expo web as a substitute because future game libraries may be native-only.
+
+### Mobile app control with agent-device
+
+Use `agent-device` for native app control instead of AppleScript/coordinate hacks. `System Events`/`osascript` requires separate macOS Accessibility/TCC permissions and may expose the Simulator window inconsistently; `agent-device` gives stable refs, snapshots, taps, recordings, and RN overlay handling.
+
+Before first use in a session:
+```bash
+agent-device --version          # require >= 0.14.0
+agent-device help workflow
+agent-device help react-native  # for RN/Expo overlays, Metro, reloads
+```
+
+Typical native validation loop:
+```bash
+agent-device devices --platform ios
+agent-device apps --platform ios --device "iPhone 17 Pro"
+agent-device open com.wondertalesai.app --session mobile --platform ios --device "iPhone 17 Pro"
+agent-device snapshot -i --session mobile --platform ios --device "iPhone 17 Pro"
+agent-device press @e3 --session mobile --platform ios --device "iPhone 17 Pro"
+agent-device screenshot --out /private/tmp/wondertales-screen.png --session mobile --platform ios --device "iPhone 17 Pro"
+agent-device close --session mobile --platform ios --device "iPhone 17 Pro"
+```
+
+React Native specifics:
+- If a snapshot reports a RN warning/error overlay, run `agent-device react-native dismiss-overlay ...` before interacting. If it does not clear, capture `screenshot --overlay-refs` and report the overlay instead of tapping warning text manually.
+- For JS-only reloads, try `agent-device metro reload ...`. If it fails or Metro/app state is stale, use `agent-device open com.wondertalesai.app --relaunch ...` to restart the native app.
+- Do not use Expo web as a substitute for mobile validation. If Metro logs show web bundling, stop using that path and relaunch/open the native app.
+- For animation validation, record a short clip and inspect only the relevant segment. Example used for the theme toggle:
+  - `agent-device record start /private/tmp/wondertales-theme-toggle.mp4 ...`
+  - press the exact toggle ref (for example `@e12 [button] "Switch to dark mode"`)
+  - `agent-device record stop /private/tmp/wondertales-theme-toggle.mp4 ...`
+  - Use `ffmpeg` only after the recording exists and there is a concrete visual question, e.g. extract a contact sheet around the transition.
+- Theme toggle evidence from 2026-06-09: after pressing `Switch to dark mode`, the final snapshot changed to `Switch to light mode`, and the extracted frames showed the circular reveal expanding from the top-right theme button.
 
 ## Common commands
 
@@ -262,6 +371,7 @@ yarn dev:mobile                                       # expo start
 yarn workspace @wondertales/mobile start --clear      # clear Metro cache
 yarn workspace @wondertales/mobile ios                # build + install dev client
 yarn workspace @wondertales/mobile tsc
+npx expo-doctor@latest                                # Expo dependency/config validation
 ```
 
 ## Env
@@ -287,6 +397,8 @@ Mobile env (`apps/mobile/.env`):
 - `apps/api/src/health/health.controller.ts` + `health.module.ts` — terminus checks + dedicated Redis client
 - `apps/api/src/config/configuration.ts` + `cache.configuration.ts` — env → `AppConfigurationType` + Keyv cache factory
 - `apps/api/prisma/schema.prisma` — Better Auth tables with snake_case columns
+- `apps/api/prisma.config.ts` — Prisma 7 CLI datasource URL via `DATABASE_URL`
+- `apps/api/src/prisma/create-prisma-client.ts` — Prisma 7 runtime client factory with `@prisma/adapter-pg`
 - `apps/mobile/src/shared/auth/auth-client.ts` — Better Auth Expo client
 - `apps/mobile/src/shared/hooks/use-auth.tsx` — Provider + `signInWithGoogle/Apple/Out`, exposes `bearerToken`
 - `apps/mobile/src/shared/api/{api-client,use-api,base-url}.ts` — typed fetch helper, bearer-wired hook
@@ -298,3 +410,4 @@ Mobile env (`apps/mobile/.env`):
 - `apps/mobile/src/shared/components/core/liquid-swipe/` — SVG-path-mask page-turn (wave, slider, pull-button)
 - `apps/mobile/src/features/books/book-player.tsx` + `use-book-audio.ts` + `narrated-text.tsx` — book reader with karaoke narration
 - `apps/mobile/src/shared/theme/color-scheme-context.tsx` — animated theme transition via Skia snapshot
+- `apps/builder/` — planned web builder workspace; not present yet

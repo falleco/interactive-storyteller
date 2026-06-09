@@ -12,6 +12,8 @@
     "api": "yarn workspace @wondertales/api",
     "shared": "yarn workspace @wondertales/shared",
     "dev:mobile": "yarn workspace @wondertales/mobile start",
+    "dev:android": "yarn workspace @wondertales/mobile android",
+    "dev:ios": "yarn workspace @wondertales/mobile ios",
     "dev:api": "yarn workspace @wondertales/api start:dev",
     "build": "yarn workspaces foreach -A --topological-dev --exclude @wondertales/root run build",
     "tsc": "yarn workspaces foreach -A --exclude @wondertales/root run tsc",
@@ -21,18 +23,16 @@
     "format": "biome format .",
     "format:fix": "biome format --write .",
     "check": "biome check .",
-    "check:fix": "biome check --write .",
-    "android": "expo run:android",
-    "ios": "expo run:ios"
+    "check:fix": "biome check --write ."
   },
   "devDependencies": {
-    "@biomejs/biome": "2.1.2",
-    "typescript": "~5.9.2"
+    "@biomejs/biome": "^2.4.16",
+    "typescript": "^6.0.3"
   },
   "dependencies": {
-    "expo": "~54.0.34",
+    "expo": "^56.0.9",
     "jose": "^6.2.3",
-    "react": "19.1.0",
-    "react-native": "0.81.5"
+    "react": "19.2.3",
+    "react-native": "0.85.3"
   }
 }

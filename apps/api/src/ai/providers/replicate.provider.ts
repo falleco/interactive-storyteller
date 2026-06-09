@@ -45,7 +45,12 @@ export class ReplicateProvider implements AiProvider {
         prompt: options.prompt,
         output_format: 'jpg',
         disable_safety_checker: true,
+        num_inference_steps: 16,
+        // output_megapixels: 0.5,
+        // go_fast: true,
         ...(options.aspectRatio ? { aspect_ratio: options.aspectRatio } : {}),
+        width: 342,
+        height: 256,
       },
     });
 

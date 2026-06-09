@@ -232,26 +232,42 @@ export function buildInteractiveUserPrompt(input: {
 export const NO_TEXT_DIRECTIVE =
   'ABSOLUTELY NO TEXT in the image. Do not render any letters, words, numbers, captions, labels, signs, book pages with readable text, title cards, watermarks, signatures, or typography of any kind, in any language, anywhere in the frame. The illustration must be 100% wordless. This rule has NO exceptions.';
 
+/**
+ * Compose the final prompt sent to the image model. Wraps a structured
+ * JSON block alongside the scene description so the model gets both:
+ *  - explicit, parseable context (cover prompt + main/other characters +
+ *    world), which modern image models follow more consistently than a
+ *    single prose paragraph; and
+ *  - the specific scene to render.
+ *
+ * Used for cover, page, and choice images alike — the only difference
+ * is the `scene` passed in. For the cover, pass `bible.coverImagePrompt`.
+ */
 export function composeImagePrompt(
   bible: StoryBible,
   scene: string,
   extras?: { extraContext?: string },
 ): string {
-  const parts = [
-    NO_TEXT_DIRECTIVE,
+  const context = {
+    coverImagePrompt: bible.coverImagePrompt.trim(),
+    mainCharacters: bible.mainCharacters.trim(),
+    otherCharacters: bible.otherCharacters?.trim() || null,
+    world: bible.world.trim(),
+  };
+  // `NO_TEXT_DIRECTIVE` only appears once at the very end — image
+  // models latch onto the final instruction in the prompt, and one
+  // pass is enough. Repeating it at both ends doubled tokens with
+  // no compliance gain.
+  const parts: string[] = [
     bible.style.trim(),
-    `World: ${bible.world.trim()}`,
-    `Main character: ${bible.mainCharacters.trim()}`,
+    `Story context (JSON):\n${JSON.stringify(context, null, 2)}`,
   ];
-  if (bible.otherCharacters?.trim()) {
-    parts.push(`Other characters: ${bible.otherCharacters.trim()}`);
-  }
   if (extras?.extraContext) {
     parts.push(extras.extraContext.trim());
   }
   parts.push(`Scene: ${scene.trim()}`);
   parts.push(NO_TEXT_DIRECTIVE);
-  return parts.join(' ');
+  return parts.join('\n\n');
 }
 
 function serializeBibleForPrompt(bible: StoryBible): string {

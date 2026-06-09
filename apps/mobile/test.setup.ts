@@ -6,7 +6,9 @@ import '@testing-library/jest-dom/vitest';
 const asyncStorageStore = new Map<string, string>();
 
 vi.mock('@react-native-async-storage/async-storage', () => {
-  const getItem = vi.fn(async (key: string) => asyncStorageStore.get(key) ?? null);
+  const getItem = vi.fn(
+    async (key: string) => asyncStorageStore.get(key) ?? null,
+  );
   const setItem = vi.fn(async (key: string, value: string) => {
     asyncStorageStore.set(key, value);
   });
