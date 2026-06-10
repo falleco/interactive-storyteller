@@ -1,11 +1,11 @@
-import { ConfigPlugin } from "expo/config-plugins";
-import withGodotFiles from "./withGodotFiles";
-import withPckFile from "./withPckFile";
+import type { ConfigPlugin } from 'expo/config-plugins';
+import withGodotFiles from './withGodotFiles';
+import withPckFile from './withPckFile';
 
 const withPlugin: ConfigPlugin = (config) => {
-  // Copy Godot files to Android assets
+  // Copy available Godot games to Android assets.
   config = withGodotFiles(config);
-  // Copy main.pck to iOS project
+  // Copy available Godot packs to the iOS bundle.
   return withPckFile(config);
 };
 

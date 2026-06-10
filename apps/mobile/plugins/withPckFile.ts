@@ -1,90 +1,69 @@
-import { ConfigPlugin, withXcodeProject } from "expo/config-plugins";
-import * as fs from "node:fs";
-import * as path from "node:path";
+/// <reference types="node" />
+
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { type ConfigPlugin, withXcodeProject } from 'expo/config-plugins';
+import { availableGames } from './available-games';
 
 /**
- * Expo config plugin to copy main.pck file from assets/godot to iOS project
+ * Expo config plugin to copy available Godot iOS packs into the iOS bundle.
  * @param config - Expo config
  */
 const withPckFiles: ConfigPlugin = (config) => {
   return withXcodeProject(config, async (config) => {
     const projectRoot = config.modRequest.projectRoot;
     const project = config.modResults;
-
-    // Source path: assets/godot/main.pck
-    const sourcePath = path.join(projectRoot, "assets", "godot", "main.pck");
-
-    // Destination path: ios/main.pck (at the root of ios folder)
-    const destPath = path.join(projectRoot, "ios", "main.pck");
-
-    // Check if source file exists
-    if (!fs.existsSync(sourcePath)) {
-      console.warn("main.pck not found at assets/godot/main.pck");
-      return config;
-    }
-
-    // Copy the file
-    fs.copyFileSync(sourcePath, destPath);
-    console.log("Copied main.pck to iOS project");
-
-    // Check if file already exists in the project
-    const existingFile = project.hasFile("main.pck");
-    if (existingFile) {
-      console.log("main.pck already exists in Xcode project");
-      return config;
-    }
-
-    // Get the main group (root group of the project)
-    const firstProject = project.getFirstProject();
-    const mainGroupKey = firstProject.firstProject.mainGroup;
+    const targetUuid = project.getFirstTarget().uuid;
+    const mainGroupKey = project.getFirstProject().firstProject.mainGroup;
 
     if (!mainGroupKey) {
-      console.error("Could not find main group");
+      console.error('Could not find main group');
       return config;
     }
 
-    console.log("Main group key:", mainGroupKey);
-
-    // Add the file reference with proper encoding
-    const file = project.addFile("main.pck", mainGroupKey, {
-      lastKnownFileType: "file",
-      defaultEncoding: 4,
-    });
-
-    if (!file) {
-      console.log("Could not add file - it may already exist");
-      return config;
+    const legacyPackPath = path.join(projectRoot, 'ios', 'main.pck');
+    if (fs.existsSync(legacyPackPath)) {
+      fs.rmSync(legacyPackPath, { force: true });
     }
 
-    console.log("Added file reference:", file.fileRef);
+    project.removeResourceFile(
+      'main.pck',
+      { target: targetUuid },
+      mainGroupKey,
+    );
 
-    // Get target UUID
-    const targetUuid = project.getFirstTarget().uuid;
-    console.log("Target UUID:", targetUuid);
+    for (const gameName of availableGames) {
+      const sourcePath = path.join(
+        projectRoot,
+        'assets',
+        'godot',
+        gameName,
+        'ios.pck',
+      );
+      const packName = `${gameName}.pck`;
+      const destPath = path.join(projectRoot, 'ios', packName);
 
-    // Generate UUID for build file
-    const buildFileUuid = project.generateUuid();
+      if (!fs.existsSync(sourcePath)) {
+        throw new Error(
+          `Godot iOS pack for "${gameName}" not found at ${sourcePath}`,
+        );
+      }
 
-    // Manually add to PBXBuildFile section with target
-    project.addToPbxBuildFileSection({
-      uuid: buildFileUuid,
-      isa: "PBXBuildFile",
-      fileRef: file.fileRef,
-      basename: "main.pck",
-      group: "Resources",
-    });
+      fs.copyFileSync(sourcePath, destPath);
+      console.log(`Copied ${sourcePath} to ${destPath}`);
 
-    console.log("Added to PBXBuildFile section");
-
-    // Add to Resources build phase with target
-    project.addToPbxResourcesBuildPhase({
-      uuid: buildFileUuid,
-      basename: "main.pck",
-      group: "Resources",
-      target: targetUuid,
-    });
-
-    console.log("Added to Resources build phase with target");
+      if (!project.hasFile(packName)) {
+        project.addResourceFile(
+          packName,
+          {
+            defaultEncoding: 4,
+            lastKnownFileType: 'file',
+            target: targetUuid,
+          },
+          mainGroupKey,
+        );
+      }
+    }
 
     return config;
   });

@@ -1,0 +1,35 @@
+[gd_scene load_steps=7 format=3 uid="uid://cy168swpr8vvn"]
+
+[ext_resource type="Script" uid="uid://f1fm4rnccnur" path="res://cube.gd" id="1_nm2h5"]
+[ext_resource type="Script" uid="uid://bdmx2weq22v25" path="res://ball.gd" id="2_3qn87"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_f8oem"]
+albedo_color = Color(1, 1, 0, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_g6nxx"]
+material = SubResource("StandardMaterial3D_f8oem")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_qy0h7"]
+albedo_color = Color(0.2, 0.55, 1, 1)
+
+[sub_resource type="SphereMesh" id="SphereMesh_tl6ex"]
+material = SubResource("StandardMaterial3D_qy0h7")
+radius = 0.22
+height = 0.44
+
+[node name="Main" type="Node3D"]
+
+[node name="Cube" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -2.90464)
+mesh = SubResource("BoxMesh_g6nxx")
+script = ExtResource("1_nm2h5")
+
+[node name="InputBall" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.65, 0, -2.35)
+mesh = SubResource("SphereMesh_tl6ex")
+script = ExtResource("2_3qn87")
+
+[node name="Camera" type="Camera3D" parent="."]
+
+[node name="OmniLight3D" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.39948, 0, -1.52733)
