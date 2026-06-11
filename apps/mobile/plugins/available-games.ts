@@ -1,1 +1,1 @@
-export const availableGames = ['demo'];
+export const availableGames = ['demo', 'fit-puzzle'];

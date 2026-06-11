@@ -21,3 +21,4 @@ case "$platform" in
 esac
 
 $BASE_DIR/export_godot.sh --target "$BASE_DIR/../apps/mobile" --name demo --preset "$preset" --project $BASE_DIR/demo --platform $platform
+$BASE_DIR/export_godot.sh --target "$BASE_DIR/../apps/mobile" --name fit-puzzle --preset "$preset" --project $BASE_DIR/fit-puzzle --platform $platform

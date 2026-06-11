@@ -39,11 +39,36 @@ export default function GameScreen() {
 
   const GameComponent = game.Component;
 
+  if (!GameComponent || !game.descriptor) {
+    return (
+      <View style={styles.missingScreen}>
+        <Stack.Screen
+          options={{
+            animation: 'slide_from_right',
+          }}
+        />
+        <ThemedText className="text-2xl font-black text-white">
+          Game route not available
+        </ThemedText>
+        <Pressable
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          className="h-12 items-center justify-center rounded-2xl bg-purple-500 px-6"
+        >
+          <ThemedText className="text-base font-black text-white">
+            Back to games
+          </ThemedText>
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <Stack.Screen
         options={{
-          animation: game.screen.animation,
+          animation: game.screen?.animation ?? 'slide_from_right',
         }}
       />
       <GameComponent descriptor={game.descriptor} />

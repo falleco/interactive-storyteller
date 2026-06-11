@@ -21,16 +21,16 @@ export type GamePlayComponentProps<TConfig = Record<string, unknown>> = {
 export type GameDefinition<TConfig = Record<string, unknown>> = {
   id: string;
   title: string;
-  subtitle: string;
-  description: string;
-  ctaLabel: string;
-  ageRange: GameAgeRange;
-  tags: string[];
-  thumbnailEmoji: string;
+  subtitle?: string;
+  description?: string;
+  ctaLabel?: string;
+  ageRange?: GameAgeRange;
+  tags?: string[];
+  thumbnailEmoji?: string;
   cardImage: number;
-  screen: {
+  screen?: {
     animation: GameScreenAnimation;
   };
-  descriptor: StoryGameDescriptor<TConfig>;
-  Component: ComponentType<GamePlayComponentProps<TConfig>>;
+  descriptor?: StoryGameDescriptor<TConfig>;
+  Component?: ComponentType<GamePlayComponentProps<TConfig>>;
 };

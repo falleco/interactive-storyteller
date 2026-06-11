@@ -4,17 +4,21 @@ import {
   runOnGodotThread,
 } from '@borndotcom/react-native-godot';
 import { Ionicons } from '@expo/vector-icons';
-import { isDevice } from 'expo-device';
-import * as FileSystem from 'expo-file-system/legacy';
+import { Stack } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   type GestureResponderEvent,
-  Platform,
   StyleSheet,
   TouchableOpacity,
   useWindowDimensions,
   View,
 } from 'react-native';
+import {
+  destroyGodotGame,
+  GameBackButton,
+  initGodotGame,
+  toLoggableError,
+} from '~/features/games/godot';
 
 const ACTION_JUMP = 'ui_accept';
 const ACTION_MOVE_LEFT = 'ui_left';
@@ -34,15 +38,6 @@ type GameAction =
   | typeof ACTION_MOVE_LEFT
   | typeof ACTION_MOVE_RIGHT;
 
-type GodotThreadResult = {
-  error?: string;
-  hasApi?: boolean;
-  hasInput?: boolean;
-  hasInstance?: boolean;
-  ok: boolean;
-  phase: string;
-};
-
 type ControlHitbox = {
   action: GameAction;
   height: number;
@@ -50,25 +45,6 @@ type ControlHitbox = {
   x: number;
   y: number;
 };
-
-function toLoggableError(error: unknown) {
-  if (error instanceof Error) {
-    return {
-      message: error.message,
-      name: error.name,
-      stack: error.stack,
-    };
-  }
-
-  return {
-    message: String(error),
-    raw: error,
-  };
-}
-
-function wait(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 function findActionAt(hitboxes: ControlHitbox[], x: number, y: number) {
   return (
@@ -80,199 +56,6 @@ function findActionAt(hitboxes: ControlHitbox[], x: number, y: number) {
         y <= hitbox.y + hitbox.height,
     )?.action ?? null
   );
-}
-
-async function initGodot(): Promise<boolean> {
-  const iosPackUri = `${FileSystem.bundleDirectory}${GAME_NAME}.pck`;
-  const androidAssetPath = `/${GAME_NAME}`;
-
-  console.log(`${LOG_PREFIX} init requested`, {
-    androidAssetPath,
-    bundleDirectory: FileSystem.bundleDirectory,
-    gameName: GAME_NAME,
-    iosPackUri,
-    platform: Platform.OS,
-  });
-
-  if (Platform.OS === 'android') {
-    console.log(
-      `${LOG_PREFIX} Android launch will use native asset path "${androidAssetPath}"`,
-    );
-  } else {
-    try {
-      const packInfo = await FileSystem.getInfoAsync(iosPackUri);
-
-      console.log(`${LOG_PREFIX} iOS pack file info`, {
-        exists: packInfo.exists,
-        isDirectory: packInfo.exists ? packInfo.isDirectory : undefined,
-        modificationTime: packInfo.exists
-          ? packInfo.modificationTime
-          : undefined,
-        size: packInfo.exists ? packInfo.size : undefined,
-        uri: packInfo.uri,
-      });
-
-      if (!packInfo.exists) {
-        console.error(
-          `${LOG_PREFIX} iOS pack is missing, aborting Godot init`,
-          {
-            iosPackUri,
-          },
-        );
-        return false;
-      }
-    } catch (error) {
-      console.error(`${LOG_PREFIX} failed to inspect iOS pack`, {
-        error,
-        iosPackUri,
-      });
-      return false;
-    }
-  }
-
-  const initResult = (await runOnGodotThread(() => {
-    'worklet';
-    console.log(`${LOG_PREFIX} initializing Godot on Godot thread`);
-
-    try {
-      if (Platform.OS === 'android') {
-        const launchArgs = [
-          '--verbose',
-          '--path',
-          androidAssetPath,
-          '--rendering-driver',
-          'opengl3',
-          '--rendering-method',
-          'gl_compatibility',
-          '--display-driver',
-          'embedded',
-        ];
-        console.log(`${LOG_PREFIX} Android createInstance args`, launchArgs);
-        RTNGodot.createInstance(launchArgs);
-      } else {
-        const args = [
-          // Uncomment and fill in the correct IP address and port for debugging in the Godot Editor.
-          // Check the documentation for the complete procedure.
-          // "--remote-debug",
-          // "tcp://IP_ADDRESS:6007",
-          '--verbose',
-          '--main-pack',
-          iosPackUri,
-          '--display-driver',
-          'embedded',
-        ];
-
-        if (isDevice) {
-          args.push(
-            '--rendering-driver',
-            'opengl3',
-            '--rendering-method',
-            'gl_compatibility',
-          );
-        } else {
-          args.push(
-            '--rendering-driver',
-            'metal',
-            '--rendering-method',
-            'mobile',
-          );
-        }
-
-        console.log(`${LOG_PREFIX} iOS createInstance args`, args);
-        RTNGodot.createInstance(args);
-
-        // const launchArgs = [
-        //   '--verbose',
-        //   '--main-pack',
-        //   iosPackUri,
-        //   '--rendering-driver',
-        //   'opengl3',
-        //   '--rendering-method',
-        //   'gl_compatibility',
-        //   '--display-driver',
-        //   'embedded',
-        // ];
-        // console.log(`${LOG_PREFIX} iOS createInstance args`, launchArgs);
-        // RTNGodot.createInstance(launchArgs);
-      }
-
-      const instance = RTNGodot.getInstance();
-      const hasInstance = instance != null;
-      console.log(`${LOG_PREFIX} createInstance returned`, { hasInstance });
-
-      return {
-        hasInstance,
-        ok: hasInstance,
-        phase: 'createInstance',
-      };
-    } catch (error) {
-      const message = String(error);
-      console.error(`${LOG_PREFIX} createInstance failed`, message);
-
-      return {
-        error: message,
-        ok: false,
-        phase: 'createInstance',
-      };
-    }
-  })) as GodotThreadResult;
-
-  console.log(`${LOG_PREFIX} init thread result`, initResult);
-
-  if (!initResult.ok) {
-    return false;
-  }
-
-  for (let attempt = 1; attempt <= 10; attempt += 1) {
-    const apiResult = (await runOnGodotThread(() => {
-      'worklet';
-
-      try {
-        const instance = RTNGodot.getInstance();
-        const Godot = RTNGodot.API();
-        const Input = Godot.Input;
-        const hasInstance = instance != null;
-        const hasApi = Godot != null;
-        const hasInput = Input != null;
-
-        console.log(`${LOG_PREFIX} API probe`, {
-          hasApi,
-          hasInput,
-          hasInstance,
-        });
-
-        return {
-          hasApi,
-          hasInput,
-          hasInstance,
-          ok: hasInstance && hasApi && hasInput,
-          phase: 'apiProbe',
-        };
-      } catch (error) {
-        const message = String(error);
-        console.error(`${LOG_PREFIX} API probe failed`, message);
-
-        return {
-          error: message,
-          ok: false,
-          phase: 'apiProbe',
-        };
-      }
-    })) as GodotThreadResult;
-
-    console.log(`${LOG_PREFIX} API probe result`, { attempt, apiResult });
-
-    if (apiResult.ok) {
-      godotControlsReady = true;
-      console.log(`${LOG_PREFIX} controls ready`);
-      return true;
-    }
-
-    await wait(250);
-  }
-
-  console.error(`${LOG_PREFIX} controls not ready after API probes`);
-  return false;
 }
 
 function pressAction(action: string) {
@@ -288,7 +71,6 @@ function pressAction(action: string) {
     try {
       const Godot = RTNGodot.API();
       const Input = Godot.Input;
-      console.log(`${LOG_PREFIX} pressing action`, action);
       Input.action_press(action);
     } catch (error) {
       console.error(`${LOG_PREFIX} error pressing action`, {
@@ -317,7 +99,6 @@ function releaseAction(action: string) {
     try {
       const Godot = RTNGodot.API();
       const Input = Godot.Input;
-      console.log(`${LOG_PREFIX} releasing action`, action);
       Input.action_release(action);
     } catch (error) {
       console.error(`${LOG_PREFIX} error releasing action`, {
@@ -333,7 +114,7 @@ function releaseAction(action: string) {
   });
 }
 
-export default function Index() {
+export default function GodotDemoScreen() {
   const [isPaused, setIsPaused] = useState(false);
   const [isGodotReady, setIsGodotReady] = useState(godotControlsReady);
   const { height, width } = useWindowDimensions();
@@ -468,8 +249,9 @@ export default function Index() {
     godotControlsReady = false;
     setIsGodotReady(false);
 
-    void initGodot()
+    void initGodotGame({ gameName: GAME_NAME, logPrefix: LOG_PREFIX })
       .then((ready) => {
+        godotControlsReady = ready;
         if (mounted) {
           setIsGodotReady(ready);
         }
@@ -485,6 +267,7 @@ export default function Index() {
     return () => {
       mounted = false;
       releaseAllGameActions();
+      destroyGodotGame(LOG_PREFIX);
     };
   }, [releaseAllGameActions]);
 
@@ -500,7 +283,9 @@ export default function Index() {
 
   return (
     <View style={styles.container}>
+      <Stack.Screen options={{ gestureEnabled: false, headerShown: false }} />
       <RTNGodotView style={styles.gameView} />
+      <GameBackButton />
 
       <View
         style={styles.controlsTouchLayer}
@@ -541,7 +326,6 @@ export default function Index() {
         </View>
       </View>
 
-      {/* Top corner - Play/Pause button */}
       <View style={styles.topControls}>
         <TouchableOpacity
           style={styles.playPauseButton}

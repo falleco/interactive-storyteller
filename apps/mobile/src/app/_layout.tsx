@@ -74,9 +74,19 @@ export default function RootLayout() {
                       }}
                     />
                     <Stack.Screen
-                      name="demo/index"
+                      name="games/demo"
                       options={{
+                        gestureEnabled: false,
                         orientation: 'landscape',
+                        presentation: 'card',
+                        animation: 'slide_from_right',
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="games/fit-puzzle"
+                      options={{
+                        gestureEnabled: false,
                         presentation: 'card',
                         animation: 'slide_from_right',
                         headerShown: false,
@@ -132,6 +142,7 @@ export default function RootLayout() {
                     <Stack.Screen
                       name="games/[id]"
                       options={{
+                        gestureEnabled: false,
                         presentation: 'card',
                         animation: 'slide_from_bottom',
                         headerShown: false,

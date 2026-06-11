@@ -146,6 +146,67 @@ The app is moving toward static books, dynamic books, and games embedded inside 
 - Keep full-screen overlays as root siblings through host-singleton providers, like `SidebarHost` and `WonderSheetHost`, so tabs/screen containers do not clip them.
 - Native-only packages stay out of `packages/shared` and any future builder workspace. Shared packages must remain safe for Node, web, and React Native unless explicitly platform-scoped.
 
+## Mobile — Godot games
+
+The current mobile game approach uses Godot projects exported into the Expo app through `@borndotcom/react-native-godot`.
+
+High-signal files:
+- [apps/mobile/src/app/games/demo.tsx](apps/mobile/src/app/games/demo.tsx) — fullscreen Godot demo route at `/games/demo`; includes RN overlay controls mapped to Godot input actions (`ui_left`, `ui_right`, `ui_accept`).
+- [apps/mobile/src/app/games/fit-puzzle.tsx](apps/mobile/src/app/games/fit-puzzle.tsx) — fullscreen fit-puzzle route at `/games/fit-puzzle`; native Godot touch/drag handles the actual puzzle input.
+- [apps/mobile/src/features/games/godot/godot-runtime.ts](apps/mobile/src/features/games/godot/godot-runtime.ts) — shared Godot instance init/destroy helpers.
+- [apps/mobile/src/features/games/godot/game-back-button.tsx](apps/mobile/src/features/games/godot/game-back-button.tsx) — shared fullscreen game back button overlay.
+- [apps/mobile/plugins/available-games.ts](apps/mobile/plugins/available-games.ts) — list of Godot games copied into native bundles by config plugins.
+- [apps/mobile/plugins/withGodotFiles.ts](apps/mobile/plugins/withGodotFiles.ts) — Android asset copier for `assets/godot/<game>/android`.
+- [apps/mobile/plugins/withPckFile.ts](apps/mobile/plugins/withPckFile.ts) — iOS `.pck` copier from `assets/godot/<game>/ios.pck` to `<game>.pck` in the app bundle.
+- [games/fit-puzzle/AGENTS.md](games/fit-puzzle/AGENTS.md) — game-specific contract for fit-puzzle input, host API, and events.
+
+Adding a Godot game to mobile:
+1. Export/copy native assets into `apps/mobile/assets/godot/<game>/android` and `apps/mobile/assets/godot/<game>/ios.pck`.
+2. Add the game id to `availableGames` in [available-games.ts](apps/mobile/plugins/available-games.ts), otherwise prebuild/native bundling will not include it.
+3. Add a dedicated route under `apps/mobile/src/app/games/<game>.tsx`. Godot games should be dedicated fullscreen screens, not embedded inside cards or regular app layouts.
+4. Add the route to the root [apps/mobile/src/app/_layout.tsx](apps/mobile/src/app/_layout.tsx) with `headerShown: false` and `gestureEnabled: false`. `gestureEnabled: false` matters on iOS so child drag gestures, especially left-to-right puzzle drags, are not interpreted as native back navigation.
+5. Add a catalog entry in [apps/mobile/src/features/games/registry.ts](apps/mobile/src/features/games/registry.ts) so the Games tab can open `/games/<id>`.
+
+Godot runtime conventions:
+- Use `initGodotGame({ gameName, logPrefix })` to create a fresh instance. It destroys any previous instance first, verifies the iOS pack when applicable, and uses `--path /<game>` on Android or `--main-pack <game>.pck` on iOS.
+- Use `destroyGodotGame(logPrefix)` on cleanup.
+- Keep RN overlays minimal and explicit. `RTNGodotView` should receive normal game touches; overlays like `GameBackButton` must use `pointerEvents="box-none"` on full-screen wrappers so only the actual button captures touches.
+- Hide the native header and status bar on fullscreen game screens. The shared `GameBackButton` currently hides the status bar and draws a solid black circular back button with white border/text.
+
+Godot signals and thread boundaries:
+- Prefer Godot signals for game events. The `react-native-godot` docs pattern is:
+  ```ts
+  const Godot = RTNGodot.API();
+  appController.game_event.connect((eventName: string) => {
+    console.log(`[FitPuzzle] game_event: ${eventName}`);
+  });
+  ```
+- Do **not** log raw Godot payload dictionaries/HostObjects directly with `console.log({ payload })`; RN console inspection may access `Symbol.toStringTag` and crash with `Unable to resolve name as property or method: Symbol.toStringTag`. Log primitive fields only, or convert fields deliberately if needed.
+- `@borndotcom/react-native-godot` uses `react-native-worklets-core`, not `react-native-worklets`, for its Godot runtime. If a signal callback needs to update React state, bridge back with `Worklets.createRunOnJS(...)`, not `scheduleOnRN` from `react-native-worklets`.
+  ```ts
+  const onComplete = useCallback(() => setIsComplete(true), []);
+  const notifyComplete = useMemo(
+    () => Worklets.createRunOnJS(onComplete),
+    [onComplete],
+  );
+
+  // inside runOnGodotThread worklet:
+  appController.game_event.connect((eventName: string) => {
+    if (eventName === 'game_completed') {
+      void notifyComplete();
+    }
+  });
+  ```
+- Avoid polling for game completion when the Godot project emits a signal. Use signals and the correct worklets-core bridge.
+
+Fit-puzzle contract:
+- Host API lives on `/root/AppController`.
+- `reset_round(round_id: String = "default") -> bool` restarts/selects a round.
+- `set_feedback_enabled(sound_enabled: bool, haptics_enabled: bool) -> bool` toggles game feedback.
+- Runtime input is native Godot `InputEventScreenTouch` and `InputEventScreenDrag`. Do not add RN drag overlays for this game.
+- Events come through `AppController.game_event(event_name, payload)`: `round_started`, `round_reset`, `item_drag_started`, `item_placed`, `item_rejected`, `game_completed`.
+- On `game_completed`, mobile shows a styled completion modal with options to go back or call `reset_round(ROUND_ID)` and play again.
+
 ## Builder — planned web app
 
 `apps/builder` is not scaffolded yet. When it is added, treat it as a separate web workspace for authoring stories, templates, and game integrations.

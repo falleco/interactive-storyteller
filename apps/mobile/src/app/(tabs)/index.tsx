@@ -56,7 +56,7 @@ export default function HomeTab() {
       id: 'demo',
       label: 'Demo',
       icon: 'gamepad-variant-outline',
-      onPress: () => router.push('/demo' as Href),
+      onPress: () => router.push('/games/demo' as Href),
     },
     {
       id: 'templates',
