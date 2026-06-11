@@ -93,6 +93,24 @@ export default function RootLayout() {
                       }}
                     />
                     <Stack.Screen
+                      name="games/word-puzzle"
+                      options={{
+                        gestureEnabled: false,
+                        presentation: 'card',
+                        animation: 'slide_from_right',
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="games/nail-paint"
+                      options={{
+                        gestureEnabled: false,
+                        presentation: 'card',
+                        animation: 'slide_from_right',
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
                       name="settings/templates/index"
                       options={{ headerShown: false }}
                     />

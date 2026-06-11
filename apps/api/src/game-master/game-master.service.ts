@@ -1,4 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
+import {
+  type AvailableStoryGame,
+  toStoryGameDescriptor,
+} from '@wondertales/shared/games';
 import { AiService } from '../ai/ai.service';
 import type { Message } from '../ai/types';
 import {
@@ -6,6 +10,8 @@ import {
   buildClassicUserPrompt,
   buildInteractiveSystemPrompt,
   buildInteractiveUserPrompt,
+  buildMagicSystemPrompt,
+  buildMagicUserPrompt,
   buildStoryBibleSystemPrompt,
   buildStoryBibleUserPrompt,
   STORY_PAGE_COUNT,
@@ -16,6 +22,7 @@ import type {
   GeneratedStory,
   GeneratedStoryBible,
   GenerateInteractivePageInput,
+  GenerateMagicStoryInput,
   GenerateStoryBibleInput,
   InteractiveChoice,
   StoryBible,
@@ -87,6 +94,39 @@ export class GameMasterService {
     if (parsed.pages.length !== STORY_PAGE_COUNT) {
       this.logger.warn(
         `Expected ${STORY_PAGE_COUNT} pages, got ${parsed.pages.length}; using what was returned`,
+      );
+    }
+
+    return { ...parsed, usage: result.usage };
+  }
+
+  /**
+   * Generate a full magic-mode story: classic linear pages plus one embedded
+   * minigame gate that the child completes before continuing.
+   */
+  async generateMagic(input: GenerateMagicStoryInput): Promise<GeneratedStory> {
+    const messages: Message[] = [
+      { role: 'system', content: buildMagicSystemPrompt(input.language) },
+      {
+        role: 'user',
+        content: buildMagicUserPrompt({
+          bible: input.bible,
+          availableGames: input.availableGames,
+        }),
+      },
+    ];
+
+    const result = await this.ai.generateText({
+      messages,
+      temperature: 0.9,
+      maxTokens: 2200,
+    });
+
+    const parsed = parseMagicStoryJson(result.content, input.availableGames);
+
+    if (parsed.pages.length !== STORY_PAGE_COUNT) {
+      this.logger.warn(
+        `Expected ${STORY_PAGE_COUNT} magic pages, got ${parsed.pages.length}; using what was returned`,
       );
     }
 
@@ -230,6 +270,99 @@ function parseClassicStoryJson(raw: string): Omit<GeneratedStory, 'usage'> {
   });
 
   return { pages };
+}
+
+interface RawMagicStoryJson {
+  pages?: unknown;
+}
+
+function parseMagicStoryJson(
+  raw: string,
+  availableGames: AvailableStoryGame[],
+): Omit<GeneratedStory, 'usage'> {
+  const cleaned = stripCodeFences(raw.trim());
+  let parsed: RawMagicStoryJson;
+  try {
+    parsed = JSON.parse(cleaned) as RawMagicStoryJson;
+  } catch (error) {
+    throw new Error(
+      `GameMaster returned invalid magic JSON: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+  if (!Array.isArray(parsed.pages) || parsed.pages.length === 0) {
+    throw new Error('GameMaster magic JSON is missing "pages"');
+  }
+  if (availableGames.length === 0) {
+    throw new Error('Magic story generation has no story-enabled games');
+  }
+
+  let gamePageIndex = -1;
+  const pages = parsed.pages.map((rawPage, index) => {
+    if (!rawPage || typeof rawPage !== 'object') {
+      throw new Error(`GameMaster magic page ${index + 1} is not an object`);
+    }
+    const page = rawPage as {
+      title?: unknown;
+      content?: unknown;
+      imagePrompt?: unknown;
+      game?: unknown;
+    };
+    if (typeof page.title !== 'string' || page.title.trim() === '') {
+      throw new Error(`GameMaster magic page ${index + 1} is missing "title"`);
+    }
+    if (typeof page.content !== 'string' || page.content.trim() === '') {
+      throw new Error(
+        `GameMaster magic page ${index + 1} is missing "content"`,
+      );
+    }
+    if (typeof page.imagePrompt !== 'string') {
+      throw new Error(
+        `GameMaster magic page ${index + 1} is missing "imagePrompt"`,
+      );
+    }
+
+    const storyPage: GeneratedStory['pages'][number] = {
+      title: page.title.trim(),
+      content: page.content.trim(),
+      imagePrompt: page.imagePrompt.trim(),
+    };
+
+    const game = parseMagicPageGame(page.game, availableGames);
+    if (game && gamePageIndex === -1) {
+      gamePageIndex = index;
+      storyPage.game = game;
+    }
+
+    return storyPage;
+  });
+
+  if (gamePageIndex === -1) {
+    const fallbackIndex = Math.min(2, Math.max(0, pages.length - 2));
+    pages[fallbackIndex].game = toStoryGameDescriptor(availableGames[0]);
+  }
+
+  return { pages };
+}
+
+function parseMagicPageGame(
+  raw: unknown,
+  availableGames: AvailableStoryGame[],
+): GeneratedStory['pages'][number]['game'] | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const game = raw as { gameId?: unknown; id?: unknown; prompt?: unknown };
+  const requestedId =
+    typeof game.gameId === 'string'
+      ? game.gameId
+      : typeof game.id === 'string'
+        ? game.id
+        : '';
+  const allowed =
+    availableGames.find((available) => available.id === requestedId) ??
+    availableGames[0];
+  const prompt = typeof game.prompt === 'string' ? game.prompt : undefined;
+  return toStoryGameDescriptor(allowed, prompt);
 }
 
 interface RawInteractivePageJson {

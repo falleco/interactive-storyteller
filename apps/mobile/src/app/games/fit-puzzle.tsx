@@ -3,10 +3,11 @@ import {
   RTNGodotView,
   runOnGodotThread,
 } from '@borndotcom/react-native-godot';
-import { router, Stack } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Worklets } from 'react-native-worklets-core';
+import { useBooks } from '~/features/books';
 import {
   destroyGodotGame,
   GameBackButton,
@@ -135,8 +136,16 @@ async function configureFitPuzzleBridge(
 }
 
 export default function FitPuzzleScreen() {
+  const { bookId, pageId } = useLocalSearchParams<{
+    bookId?: string;
+    pageId?: string;
+  }>();
+  const { completeGame } = useBooks();
   const [isReady, setIsReady] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const [isContinuingStory, setIsContinuingStory] = useState(false);
+  const storyCompletionHandledRef = useRef(false);
+  const isStoryGame = Boolean(bookId && pageId);
 
   const handleGameCompleted = useCallback(() => {
     setIsComplete(true);
@@ -159,6 +168,30 @@ export default function FitPuzzleScreen() {
         setIsComplete(true);
       });
   }, []);
+
+  const handleContinueStory = useCallback(async () => {
+    if (isContinuingStory || storyCompletionHandledRef.current) return;
+    storyCompletionHandledRef.current = true;
+    if (!bookId || !pageId) {
+      router.back();
+      return;
+    }
+    setIsContinuingStory(true);
+    try {
+      await completeGame({ bookId, pageId, gameId: GAME_NAME });
+      router.back();
+    } catch (error) {
+      storyCompletionHandledRef.current = false;
+      console.warn(`${LOG_PREFIX} complete story game failed`, error);
+    } finally {
+      setIsContinuingStory(false);
+    }
+  }, [bookId, completeGame, isContinuingStory, pageId]);
+
+  useEffect(() => {
+    if (!isStoryGame || !isComplete || isContinuingStory) return;
+    void handleContinueStory();
+  }, [handleContinueStory, isComplete, isContinuingStory, isStoryGame]);
 
   useEffect(() => {
     let mounted = true;
@@ -201,7 +234,7 @@ export default function FitPuzzleScreen() {
       <Modal
         animationType="fade"
         transparent
-        visible={isComplete}
+        visible={isComplete && !isStoryGame}
         onRequestClose={() => router.back()}
       >
         <View style={styles.modalBackdrop}>
@@ -211,32 +244,60 @@ export default function FitPuzzleScreen() {
             </View>
             <Text style={styles.modalTitle}>Great job!</Text>
             <Text style={styles.modalBody}>
-              You matched every shape in the puzzle.
+              {isStoryGame
+                ? 'You matched every shape and helped the story move forward.'
+                : 'You matched every shape in the puzzle.'}
             </Text>
             <View style={styles.modalActions}>
               <Pressable
-                onPress={() => router.back()}
+                onPress={
+                  isStoryGame ? handleContinueStory : () => router.back()
+                }
                 accessibilityRole="button"
-                accessibilityLabel="Back to games"
+                accessibilityLabel={
+                  isStoryGame ? 'Continue story' : 'Back to games'
+                }
+                disabled={isContinuingStory}
                 style={({ pressed }) => [
                   styles.gameButton,
-                  styles.secondaryButton,
+                  isStoryGame ? styles.primaryButton : styles.secondaryButton,
                   pressed ? styles.gameButtonPressed : null,
                 ]}
               >
-                <Text style={styles.secondaryButtonText}>Back</Text>
+                <Text
+                  style={
+                    isStoryGame
+                      ? styles.primaryButtonText
+                      : styles.secondaryButtonText
+                  }
+                >
+                  {isContinuingStory
+                    ? 'Saving...'
+                    : isStoryGame
+                      ? 'Continue'
+                      : 'Back'}
+                </Text>
               </Pressable>
               <Pressable
                 onPress={handlePlayAgain}
                 accessibilityRole="button"
                 accessibilityLabel="Play again"
+                disabled={isContinuingStory}
                 style={({ pressed }) => [
                   styles.gameButton,
-                  styles.primaryButton,
+                  isStoryGame ? styles.secondaryButton : styles.primaryButton,
                   pressed ? styles.gameButtonPressed : null,
                 ]}
               >
-                <Text style={styles.primaryButtonText}>Play again</Text>
+                <Text
+                  style={
+                    isStoryGame
+                      ? styles.secondaryButtonText
+                      : styles.primaryButtonText
+                  }
+                >
+                  Play again
+                </Text>
               </Pressable>
             </View>
           </View>

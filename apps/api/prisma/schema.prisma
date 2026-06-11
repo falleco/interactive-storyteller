@@ -184,6 +184,11 @@ model BookPage {
   imageObjectKey     String?  @map("image_object_key")
   audioUrl           String?  @map("audio_url")
   audioObjectKey     String?  @map("audio_object_key")
+  /// Optional minigame descriptor for magic-mode story pages. Shape follows
+  /// StoryGameDescriptor from @wondertales/shared/games.
+  game               Json?
+  gameCompletedAt    DateTime? @map("game_completed_at")
+  gameResult         Json?     @map("game_result")
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 

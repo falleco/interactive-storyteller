@@ -7,6 +7,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { Book, Prisma } from '@prisma/client';
+import {
+  type GameCompletionResult,
+  getStoryEnabledGames,
+} from '@wondertales/shared/games';
 import type { Queue } from 'bullmq';
 import { GameMasterService } from '../game-master/game-master.service';
 import { composeImagePrompt, STORY_PAGE_COUNT } from '../game-master/prompts';
@@ -45,11 +49,19 @@ export interface CreateClassicBookInput {
 }
 
 export type CreateInteractiveBookInput = CreateClassicBookInput;
+export type CreateMagicBookInput = CreateClassicBookInput;
 
 export interface ContinueInteractiveInput {
   bookId: string;
   userId: string;
   choiceIndex: number;
+}
+
+export interface CompleteMagicGameInput {
+  bookId: string;
+  userId: string;
+  pageId: string;
+  result?: GameCompletionResult;
 }
 
 const JOB_DEFAULTS = {
@@ -214,6 +226,115 @@ export class BookGenerationService {
 
     this.logger.log(
       `Book ${book.id} created with ${book.pages.length} pages, media jobs enqueued`,
+    );
+    return book;
+  }
+
+  /**
+   * Create a magic-mode book end-to-end. Magic mode is linear like classic,
+   * but one generated page carries a minigame descriptor. The mobile player
+   * gates later pages until that game is completed.
+   */
+  async createMagic(input: CreateMagicBookInput): Promise<Book> {
+    const { language, storyteller, child } =
+      await this.validateGenerationInputs(input);
+    const childPayload = child
+      ? { name: child.name, age: child.age, gender: child.gender }
+      : undefined;
+
+    const availableGames = getStoryEnabledGames();
+    if (availableGames.length === 0) {
+      throw new BadRequestException(
+        'No story-enabled games are available for magic mode',
+      );
+    }
+
+    const resolved = await this.resolveTheme({
+      userId: input.userId,
+      theme: input.theme,
+      templateId: input.templateId,
+    });
+
+    this.logger.log(
+      resolved.templateId
+        ? `Generating story bible (magic, user=${input.userId}, language=${language}, template="${resolved.templateTitle}")`
+        : `Generating story bible (magic, user=${input.userId}, language=${language})`,
+    );
+    const { bible, usage: bibleUsage } =
+      await this.gameMaster.generateStoryBible({
+        language,
+        theme: resolved.theme,
+        child: childPayload,
+      });
+
+    this.logger.log(
+      `Generating magic pages for "${bible.title}" (storyteller=${storyteller.identifier})`,
+    );
+    const story = await this.gameMaster.generateMagic({
+      language,
+      theme: resolved.theme,
+      child: childPayload,
+      bible,
+      availableGames,
+    });
+
+    const promptTokens =
+      (bibleUsage?.promptTokens ?? 0) + (story.usage?.promptTokens ?? 0);
+    const completionTokens =
+      (bibleUsage?.completionTokens ?? 0) +
+      (story.usage?.completionTokens ?? 0);
+    const totalTokens =
+      (bibleUsage?.totalTokens ?? 0) + (story.usage?.totalTokens ?? 0);
+
+    const book = await this.prisma.book.create({
+      data: {
+        userId: input.userId,
+        childProfileId: input.childProfileId ?? null,
+        status: 'generating',
+        mode: 'magic',
+        language,
+        storyteller: storyteller.identifier,
+        theme: resolved.theme ?? null,
+        templateId: resolved.templateId,
+        templateLabel: resolved.templateTitle,
+        title: bible.title,
+        storyBible: bible as unknown as Prisma.InputJsonValue,
+        characterDescription: bible.mainCharacters,
+        coverImagePrompt: bible.coverImagePrompt,
+        finalCoverImagePrompt: composeImagePrompt(
+          bible,
+          bible.coverImagePrompt,
+        ),
+        promptTokens,
+        completionTokens,
+        totalTokens,
+        pageCount: story.pages.length,
+        pages: {
+          create: story.pages.map((page, index) => ({
+            pageNumber: index + 1,
+            title: page.title,
+            content: page.content,
+            narrationText: page.content,
+            imagePrompt: page.imagePrompt,
+            finalImagePrompt: page.imagePrompt
+              ? composeImagePrompt(bible, page.imagePrompt)
+              : null,
+            game: page.game
+              ? (page.game as unknown as Prisma.InputJsonValue)
+              : undefined,
+          })),
+        },
+      },
+      include: { pages: { orderBy: { pageNumber: 'asc' } } },
+    });
+
+    await this.enqueueInitialMediaJobs(
+      book.id,
+      book.pages.map((p) => p.id),
+    );
+
+    this.logger.log(
+      `Book ${book.id} (magic) created with ${book.pages.length} pages, media jobs enqueued`,
     );
     return book;
   }
@@ -481,6 +602,48 @@ export class BookGenerationService {
       `Book ${book.id}: appended page ${nextPageNumber} with ${created.choices.length} choices`,
     );
     return updatedBook;
+  }
+
+  async completeMagicGame(input: CompleteMagicGameInput): Promise<void> {
+    const book = await this.prisma.book.findUnique({
+      where: { id: input.bookId },
+      include: {
+        pages: {
+          orderBy: { pageNumber: 'asc' },
+          select: { id: true, game: true, gameCompletedAt: true },
+        },
+      },
+    });
+    if (!book) throw new NotFoundException('Book not found');
+    if (book.userId !== input.userId) {
+      throw new ForbiddenException('You do not own this book');
+    }
+    if (book.mode !== 'magic') {
+      throw new BadRequestException('Book is not magic mode');
+    }
+
+    const page = book.pages.find((p) => p.id === input.pageId);
+    if (!page) {
+      throw new NotFoundException('Book page not found');
+    }
+    if (!page.game) {
+      throw new BadRequestException('Book page does not contain a game');
+    }
+    if (page.gameCompletedAt) {
+      return;
+    }
+
+    await this.prisma.bookPage.update({
+      where: { id: page.id },
+      data: {
+        gameCompletedAt: new Date(),
+        gameResult: input.result
+          ? (input.result as unknown as Prisma.InputJsonValue)
+          : undefined,
+      },
+    });
+
+    await this.events.publish(book.id);
   }
 
   /**

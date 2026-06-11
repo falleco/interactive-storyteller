@@ -153,12 +153,16 @@ The current mobile game approach uses Godot projects exported into the Expo app 
 High-signal files:
 - [apps/mobile/src/app/games/demo.tsx](apps/mobile/src/app/games/demo.tsx) — fullscreen Godot demo route at `/games/demo`; includes RN overlay controls mapped to Godot input actions (`ui_left`, `ui_right`, `ui_accept`).
 - [apps/mobile/src/app/games/fit-puzzle.tsx](apps/mobile/src/app/games/fit-puzzle.tsx) — fullscreen fit-puzzle route at `/games/fit-puzzle`; native Godot touch/drag handles the actual puzzle input.
+- [apps/mobile/src/app/games/word-puzzle.tsx](apps/mobile/src/app/games/word-puzzle.tsx) — fullscreen word-puzzle route at `/games/word-puzzle`; RN configures the target word and Godot handles native letter dragging.
+- [apps/mobile/src/app/games/nail-paint.tsx](apps/mobile/src/app/games/nail-paint.tsx) — fullscreen nail-paint route at `/games/nail-paint`; RN configures palette/patterns and Godot handles native painting input.
 - [apps/mobile/src/features/games/godot/godot-runtime.ts](apps/mobile/src/features/games/godot/godot-runtime.ts) — shared Godot instance init/destroy helpers.
 - [apps/mobile/src/features/games/godot/game-back-button.tsx](apps/mobile/src/features/games/godot/game-back-button.tsx) — shared fullscreen game back button overlay.
 - [apps/mobile/plugins/available-games.ts](apps/mobile/plugins/available-games.ts) — list of Godot games copied into native bundles by config plugins.
 - [apps/mobile/plugins/withGodotFiles.ts](apps/mobile/plugins/withGodotFiles.ts) — Android asset copier for `assets/godot/<game>/android`.
 - [apps/mobile/plugins/withPckFile.ts](apps/mobile/plugins/withPckFile.ts) — iOS `.pck` copier from `assets/godot/<game>/ios.pck` to `<game>.pck` in the app bundle.
 - [games/fit-puzzle/AGENTS.md](games/fit-puzzle/AGENTS.md) — game-specific contract for fit-puzzle input, host API, and events.
+- [games/word-puzzle/AGENTS.md](games/word-puzzle/AGENTS.md) — game-specific contract for word-puzzle input, host API, and events.
+- [games/nail-paint/AGENTS.md](games/nail-paint/AGENTS.md) — game-specific contract for nail-paint palette configuration, input, and events.
 
 Adding a Godot game to mobile:
 1. Export/copy native assets into `apps/mobile/assets/godot/<game>/android` and `apps/mobile/assets/godot/<game>/ios.pck`.
@@ -206,6 +210,15 @@ Fit-puzzle contract:
 - Runtime input is native Godot `InputEventScreenTouch` and `InputEventScreenDrag`. Do not add RN drag overlays for this game.
 - Events come through `AppController.game_event(event_name, payload)`: `round_started`, `round_reset`, `item_drag_started`, `item_placed`, `item_rejected`, `game_completed`.
 - On `game_completed`, mobile shows a styled completion modal with options to go back or call `reset_round(ROUND_ID)` and play again.
+
+Nail-paint contract:
+- Host API lives on `/root/AppController`.
+- `configure_palette(round_id: String = "default", color_hexes: Array = [], pattern_ids: Array = []) -> bool` sanitizes the host palette/patterns, resets the round, and emits `palette_configured`.
+- `reset_round(round_id: String = "default") -> bool` clears brush marks and restarts the round.
+- `set_feedback_enabled(sound_enabled: bool, haptics_enabled: bool) -> bool` toggles Godot sound and haptics.
+- Runtime input is native Godot `InputEventScreenTouch` and `InputEventScreenDrag`. Do not add RN paint/drag overlays for this game.
+- Events come through `AppController.game_event(event_name, payload)`: `round_started`, `palette_configured`, `color_selected`, `pattern_selected`, `paint_started`, `nail_painted`, `paint_rejected`, `round_reset`, `game_completed`.
+- On `game_completed`, mobile either completes the story game and goes back or shows a styled completion modal with back/play-again actions.
 
 ## Builder — planned web app
 

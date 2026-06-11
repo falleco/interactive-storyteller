@@ -1,7 +1,8 @@
+import type { StoryGameDescriptor } from '@wondertales/shared/games';
 import type { Language } from '../storytellers';
 
 export type BookStatus = 'draft' | 'generating' | 'ready' | 'failed';
-export type BookMode = 'classic' | 'interactive';
+export type BookMode = 'classic' | 'interactive' | 'magic';
 
 /**
  * Total pages for an interactive story — when reached, no more choices are
@@ -41,6 +42,8 @@ export interface BookPagePayload {
   narrationText: string;
   imageUrl: string | null;
   audioUrl: string | null;
+  game: StoryGameDescriptor | null;
+  gameCompletedAt: string | null;
   choices: BookChoice[];
 }
 

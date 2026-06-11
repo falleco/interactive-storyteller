@@ -29,6 +29,7 @@ import { BookGenerationService } from './book-generation.service';
 import type { BookDetail } from './books.service';
 import { BooksService } from './books.service';
 import { ChooseNextDto } from './dto/choose-next.dto';
+import { CompleteGameDto } from './dto/complete-game.dto';
 import { CreateBookDto } from './dto/create-book.dto';
 
 interface BookSseEvent {
@@ -65,7 +66,7 @@ export class BooksController {
   @ApiOperation({
     summary: 'Create a new book and kick off generation',
     description:
-      'Returns the book immediately with status="generating". Media (cover, audio, page images) renders asynchronously; poll GET /books/:id until status="ready". For interactive mode, only page 1 is generated up-front — call POST /books/:id/choice to append subsequent pages.',
+      'Returns the book immediately with status="generating". Media (cover, audio, page images) renders asynchronously; poll GET /books/:id until status="ready". Interactive mode generates page 1 up-front and uses POST /books/:id/choice to append pages. Magic mode generates a full linear story with one minigame gate.',
   })
   async create(@CurrentUser() user: PublicUser, @Body() dto: CreateBookDto) {
     const params = {
@@ -79,7 +80,9 @@ export class BooksController {
     const book =
       dto.mode === 'interactive'
         ? await this.generation.createInteractive(params)
-        : await this.generation.createClassic(params);
+        : dto.mode === 'magic'
+          ? await this.generation.createMagic(params)
+          : await this.generation.createClassic(params);
     return {
       id: book.id,
       title: book.title,
@@ -108,6 +111,34 @@ export class BooksController {
       choiceIndex: dto.choiceIndex,
     });
     return this.books.getOwnedDetailOrThrow({ id, userId: user.id });
+  }
+
+  @Post(':id/pages/:pageId/game/complete')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Mark a magic-mode page minigame as completed',
+    description:
+      'Unlocks the following story pages in the mobile player. The book stream emits a fresh snapshot after completion.',
+  })
+  async completeGame(
+    @CurrentUser() user: PublicUser,
+    @Param('id') id: string,
+    @Param('pageId') pageId: string,
+    @Body() dto: CompleteGameDto,
+  ) {
+    await this.generation.completeMagicGame({
+      bookId: id,
+      userId: user.id,
+      pageId,
+      result: dto.gameId
+        ? {
+            gameId: dto.gameId,
+            completed: dto.completed ?? true,
+            score: dto.score ?? 1,
+            total: dto.total ?? 1,
+          }
+        : undefined,
+    });
   }
 
   @Post(':id/complete-read')

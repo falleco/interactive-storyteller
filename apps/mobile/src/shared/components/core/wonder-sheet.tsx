@@ -597,7 +597,7 @@ function ModeStep({
 }) {
   return (
     <View className="flex-1 items-center justify-center">
-      <View className="flex-row gap-4">
+      <View className="flex-row flex-wrap justify-center gap-3 px-2">
         <ModeCard
           icon="book-open-page-variant-outline"
           label="Classic"
@@ -611,6 +611,13 @@ function ModeStep({
           description="Pick what happens next at each page"
           selected={selected === 'interactive'}
           onPress={() => onPick('interactive')}
+        />
+        <ModeCard
+          icon="magic-staff"
+          label="Magic"
+          description="A linear story with a puzzle inside"
+          selected={selected === 'magic'}
+          onPress={() => onPick('magic')}
         />
       </View>
     </View>
@@ -637,7 +644,7 @@ function ModeCard({
       accessibilityLabel={label}
       accessibilityState={{ selected }}
       className={cn(
-        'w-36 h-36 rounded-3xl items-center justify-center p-3',
+        'w-32 h-36 rounded-3xl items-center justify-center p-3',
         'bg-gray-50 dark:bg-zinc-800',
         selected && 'bg-purple-100 dark:bg-purple-900/40',
       )}

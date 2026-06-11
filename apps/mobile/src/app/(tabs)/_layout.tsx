@@ -29,20 +29,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="family"
-        options={{
-          title: 'Family',
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="person.2.fill" color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="games"
         options={{
           title: 'Games',
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="gamecontroller.fill" color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="family"
+        options={{
+          title: 'Family',
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="person.2.fill" color={color} />
           ),
         }}
       />

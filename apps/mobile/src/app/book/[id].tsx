@@ -1,6 +1,12 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
-import { router, useLocalSearchParams } from 'expo-router';
+import {
+  type Href,
+  router,
+  useFocusEffect,
+  useLocalSearchParams,
+} from 'expo-router';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import {
   SafeAreaView,
@@ -17,6 +23,71 @@ import { ThemedText } from '~/shared/components/themed-text';
 import { useThemeColor } from '~/shared/hooks/use-theme-color';
 import { cn } from '~/shared/lib/cn';
 
+function buildGameHref({
+  bookId,
+  gameId,
+  pageId,
+  config,
+}: {
+  bookId: string;
+  gameId: string;
+  pageId: string;
+  config: Record<string, unknown>;
+}) {
+  const params: [string, string][] = [
+    ['bookId', bookId],
+    ['pageId', pageId],
+  ];
+
+  const roundId = config.roundId;
+  if (typeof roundId === 'string' && roundId.trim()) {
+    params.push(['roundId', roundId.trim()]);
+  }
+
+  const targetWord = config.targetWord;
+  if (typeof targetWord === 'string' && targetWord.trim()) {
+    params.push(['targetWord', targetWord.trim()]);
+  }
+
+  const extraLetterCount = config.extraLetterCount;
+  if (
+    typeof extraLetterCount === 'number' &&
+    Number.isFinite(extraLetterCount)
+  ) {
+    params.push(['extraLetterCount', String(extraLetterCount)]);
+  }
+
+  const colorHexes = config.colorHexes;
+  if (Array.isArray(colorHexes)) {
+    const colors = colorHexes
+      .filter((color): color is string => typeof color === 'string')
+      .map((color) => color.trim())
+      .filter(Boolean);
+
+    if (colors.length > 0) {
+      params.push(['colorHexes', colors.join(',')]);
+    }
+  }
+
+  const patternIds = config.patternIds;
+  if (Array.isArray(patternIds)) {
+    const patterns = patternIds
+      .filter((pattern): pattern is string => typeof pattern === 'string')
+      .map((pattern) => pattern.trim())
+      .filter(Boolean);
+
+    if (patterns.length > 0) {
+      params.push(['patternIds', patterns.join(',')]);
+    }
+  }
+
+  const query = params
+    .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+    .join('&');
+
+  return `/games/${gameId}?${query}` as Href;
+}
+
 export default function BookDetailScreen() {
   const backgroundColor = useThemeColor({}, 'background');
   const iconColor = useThemeColor({}, 'text');
@@ -24,6 +95,18 @@ export default function BookDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { book, isLoading, error, refetch } = useBookDetail(id ?? null);
   const { completeRead, chooseNext } = useBooks();
+  const pendingGameKeyRef = useRef<string | null>(null);
+  const [completedGameKey, setCompletedGameKey] = useState<string | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      const pendingGameKey = pendingGameKeyRef.current;
+      if (!pendingGameKey) return;
+      pendingGameKeyRef.current = null;
+      setCompletedGameKey(pendingGameKey);
+      void refetch();
+    }, [refetch]),
+  );
 
   const handleClose = () => router.back();
 
@@ -62,6 +145,19 @@ export default function BookDetailScreen() {
           book={book}
           onComplete={handleComplete}
           onChoose={handleChoose}
+          onStartGame={({ page, game }) => {
+            pendingGameKeyRef.current = `${book.id}:${page.id}:${game.id}`;
+            setCompletedGameKey(null);
+            router.push(
+              buildGameHref({
+                bookId: book.id,
+                gameId: game.id,
+                pageId: page.id,
+                config: game.config,
+              }),
+            );
+          }}
+          completedGameKey={completedGameKey}
           onBack={handleClose}
         />
       </View>

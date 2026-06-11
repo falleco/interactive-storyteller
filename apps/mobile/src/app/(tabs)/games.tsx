@@ -10,13 +10,17 @@ import { gameLibrary } from '~/features/games';
 import { ThemedText } from '~/shared/components/themed-text';
 import { useThemeColor } from '~/shared/hooks/use-theme-color';
 
-const IPAD_BREAKPOINT = 768;
+const GAME_COLUMNS = 2;
 
 export default function GamesTab() {
   const backgroundColor = useThemeColor({}, 'background');
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const columns = width >= IPAD_BREAKPOINT ? 2 : 1;
+  const horizontalPadding = 16;
+  const cardGap = 12;
+  const cardWidth =
+    (width - horizontalPadding * 2 - cardGap * (GAME_COLUMNS - 1)) /
+    GAME_COLUMNS;
 
   const handleOpenGame = (id: string) => {
     router.push(`/games/${id}` as Href);
@@ -25,15 +29,15 @@ export default function GamesTab() {
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor }}>
       <FlatList
-        key={columns}
+        key={GAME_COLUMNS}
         className="flex-1"
         data={gameLibrary}
         keyExtractor={(game) => game.id}
-        numColumns={columns}
-        columnWrapperStyle={columns > 1 ? { gap: 16 } : undefined}
-        ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+        numColumns={GAME_COLUMNS}
+        columnWrapperStyle={{ gap: cardGap }}
+        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         contentContainerStyle={{
-          paddingHorizontal: 20,
+          paddingHorizontal: horizontalPadding,
           paddingTop: 12,
           paddingBottom: insets.bottom + 220,
         }}
@@ -48,6 +52,7 @@ export default function GamesTab() {
           <GameLibraryCard
             game={item}
             onPress={() => handleOpenGame(item.id)}
+            width={cardWidth}
           />
         )}
       />
@@ -58,16 +63,19 @@ export default function GamesTab() {
 function GameLibraryCard({
   game,
   onPress,
+  width,
 }: {
   game: GameDefinition<any>;
   onPress: () => void;
+  width: number;
 }) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`Start ${game.title}`}
-      className="flex-1 overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-zinc-700 dark:bg-zinc-900"
+      className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-zinc-700 dark:bg-zinc-900"
+      style={{ width }}
     >
       <Image
         source={game.cardImage}

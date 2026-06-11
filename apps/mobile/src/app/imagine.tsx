@@ -158,9 +158,9 @@ export default function ImagineScreen() {
       >
         <Section
           title="Mode"
-          hint="Classic stories play start-to-finish. Interactive stories let you pick what happens next."
+          hint="Classic stories play start-to-finish. Interactive stories branch with choices. Magic stories add a puzzle inside the plot."
         >
-          <View className="flex-row gap-2">
+          <View className="flex-row flex-wrap gap-2">
             <Pill
               label="📖 Classic"
               selected={mode === 'classic'}
@@ -170,6 +170,11 @@ export default function ImagineScreen() {
               label="🎮 Interactive"
               selected={mode === 'interactive'}
               onPress={() => setMode('interactive')}
+            />
+            <Pill
+              label="✨ Magic"
+              selected={mode === 'magic'}
+              onPress={() => setMode('magic')}
             />
           </View>
         </Section>

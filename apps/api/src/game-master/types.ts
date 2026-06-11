@@ -1,3 +1,7 @@
+import type {
+  AvailableStoryGame,
+  StoryGameDescriptor,
+} from '@wondertales/shared/games';
 import type { TextUsage } from '../ai/types';
 import type { Language } from '../storytellers/storyteller-catalog';
 
@@ -47,6 +51,8 @@ export interface StoryPage {
    * style + world + mainCharacters context.
    */
   imagePrompt: string;
+  /** Optional minigame that must be completed before the story continues. */
+  game?: StoryGameDescriptor;
 }
 
 export interface GeneratedStoryBible {
@@ -75,6 +81,13 @@ export interface GeneratedStory {
 export interface GenerateClassicStoryInput extends GenerateStoryBibleInput {
   /** Canonical bible the pages must stay consistent with. */
   bible: StoryBible;
+}
+
+export interface GenerateMagicStoryInput extends GenerateStoryBibleInput {
+  /** Canonical bible the pages must stay consistent with. */
+  bible: StoryBible;
+  /** Games the LLM may weave into the story. Internal/test games are excluded. */
+  availableGames: AvailableStoryGame[];
 }
 
 /** A past page + which choice was taken. Fed back to the LLM as history. */

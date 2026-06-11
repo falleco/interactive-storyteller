@@ -1,3 +1,4 @@
+import type { AvailableStoryGame } from '@wondertales/shared/games';
 import type { Language } from '../storytellers/storyteller-catalog';
 import type { StoryBible } from './types';
 
@@ -131,6 +132,78 @@ export function buildClassicUserPrompt(input: {
     serializeBibleForPrompt(input.bible),
     '',
     'Now write the pages of the book in the language requested. Stay faithful to the bible.',
+  ].join('\n');
+}
+
+// ============================================================================
+// MAGIC story pages — generated up-front like classic, with minigames embedded
+// ============================================================================
+
+export function buildMagicSystemPrompt(language: Language): string {
+  return `You are a children's storyteller writing a MAGIC story: a complete, linear book that includes exactly one playable minigame as part of the plot.
+
+Rules:
+- Write each page's text in ${LANGUAGE_LABELS[language]}.
+- Image prompts are written in English (they feed the image model).
+- Each page should be 4-7 sentences long, simple and vivid for kids 2-10.
+- Positive, heartwarming, no scary or violent content.
+- Re-use the world, characters, and tone from the bible faithfully — no contradictions.
+- Magic mode is NOT choice-based. The child does not pick branches. The child solves one minigame to unlock the next story moment.
+- Include exactly one "game" object on exactly one page, preferably page 2 or 3. All other pages must use "game": null.
+- The game must feel necessary to the story, not pasted on. The page with the game should set up why the child needs to solve it.
+- The page immediately AFTER the game must explicitly reflect the solved result: characters react, the obstacle changes, and the story continues because the child completed the game.
+- Use only one of the allowed game ids from the user's list. Never invent a game id.
+- Never use internal/test games.
+- Page titles must follow the bible's tone; each page title should reflect the unique moment on that page, not generic fantasy filler.
+
+IMAGE PROMPTS:
+- Each page MUST include an "imagePrompt" field in English describing JUST what happens on this page — the scene, the action, the mood. Be concrete.
+- Do NOT repeat the style or the full character description in imagePrompt; the renderer prepends them.
+- Every image MUST be 100% wordless. ABSOLUTELY NO TEXT, EVER, in any image: no letters, words, numbers, captions, labels, signs, readable book pages, title cards, watermarks, signatures, or typography of any kind, in any language, anywhere in the frame. This rule has NO exceptions. If a scene naturally suggests text, describe it abstractly so the artist draws no glyphs.
+
+You MUST respond with valid JSON only — no markdown, no code fences. Use this exact structure:
+{
+  "pages": [
+    {
+      "title": "Page Title",
+      "content": "Page content...",
+      "imagePrompt": "Scene-only visual description for this page",
+      "game": null
+    },
+    {
+      "title": "Page Title",
+      "content": "Page content that sets up the playable obstacle...",
+      "imagePrompt": "Scene-only visual description for this page",
+      "game": {
+        "gameId": "allowed-game-id",
+        "prompt": "Short instruction in ${LANGUAGE_LABELS[language]} that connects this exact story moment to the minigame."
+      }
+    }
+  ]
+}
+
+Generate exactly ${STORY_PAGE_COUNT} pages.`;
+}
+
+export function buildMagicUserPrompt(input: {
+  bible: StoryBible;
+  availableGames: AvailableStoryGame[];
+}): string {
+  return [
+    'Use this story bible as the fixed canon:',
+    serializeBibleForPrompt(input.bible),
+    '',
+    'Allowed games for this magic story:',
+    ...input.availableGames.map((game) =>
+      [
+        `- id: ${game.id}`,
+        `  title: ${game.title}`,
+        `  description: ${game.description}`,
+        `  story use: ${game.storyPrompt}`,
+      ].join('\n'),
+    ),
+    '',
+    'Now write the full magic story. Include exactly one game object using one allowed game id.',
   ].join('\n');
 }
 

@@ -1,6 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import type { StoryGameDescriptor } from '@wondertales/shared/games';
 import { Image } from 'expo-image';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlatButton } from '~/shared/components/core/flat-button';
@@ -28,6 +29,13 @@ interface BookPlayerProps {
    * progress automatically.
    */
   onChoose?: (input: { choiceIndex: number }) => Promise<void> | void;
+  /** Called after a magic-mode setup page finishes narration. */
+  onStartGame?: (input: {
+    page: BookPagePayload;
+    game: StoryGameDescriptor;
+  }) => void;
+  /** Session key for a story game that just returned from its native screen. */
+  completedGameKey?: string | null;
   /**
    * Tap-back from the player's own back button. The host screen is also
    * free to render its own header — this is a redundant exit affordance
@@ -83,6 +91,8 @@ export function BookPlayer({
   book,
   onComplete,
   onChoose,
+  onStartGame,
+  completedGameKey,
   onBack,
 }: BookPlayerProps) {
   const insets = useSafeAreaInsets();
@@ -92,6 +102,8 @@ export function BookPlayer({
   const [pendingChoiceIndex, setPendingChoiceIndex] = useState<number | null>(
     null,
   );
+  const launchedGameRef = useRef<string | null>(null);
+  const advancedAfterGameRef = useRef<string | null>(null);
   /**
    * Whether the narration audio for the current slide has finished. Drives
    * whether the swipe affordances are armed — kids only get to turn the
@@ -171,6 +183,8 @@ export function BookPlayer({
   useEffect(() => {
     setIndex(0);
     setHasReachedEnd(false);
+    launchedGameRef.current = null;
+    advancedAfterGameRef.current = null;
   }, [book.id]);
 
   // Latch the "finished a first pass" flag the moment the end slide is
@@ -179,6 +193,42 @@ export function BookPlayer({
   useEffect(() => {
     if (currentSlide?.kind === 'end') setHasReachedEnd(true);
   }, [currentSlide?.kind]);
+
+  useEffect(() => {
+    if (currentSlide?.kind !== 'page' || !currentSlide.page.game) {
+      launchedGameRef.current = null;
+      advancedAfterGameRef.current = null;
+      return;
+    }
+
+    const { game } = currentSlide.page;
+    const gameKey = `${book.id}:${currentSlide.page.id}:${game.id}`;
+
+    if (
+      completedGameKey === gameKey &&
+      launchedGameRef.current === gameKey &&
+      nextSlide &&
+      advancedAfterGameRef.current !== gameKey
+    ) {
+      advancedAfterGameRef.current = gameKey;
+      setIndex(safeIndex + 1);
+      return;
+    }
+
+    if (!audioFinished || !onStartGame || launchedGameRef.current === gameKey) {
+      return;
+    }
+    launchedGameRef.current = gameKey;
+    onStartGame({ page: currentSlide.page, game });
+  }, [
+    audioFinished,
+    book.id,
+    completedGameKey,
+    currentSlide,
+    nextSlide,
+    onStartGame,
+    safeIndex,
+  ]);
 
   const handleFinish = useCallback(async () => {
     if (!onComplete) return;
@@ -623,9 +673,20 @@ function PageIndicator({ current, total }: { current: number; total: number }) {
 function buildSlides(book: BookDetail): Slide[] {
   const slides: Slide[] = [{ kind: 'cover' }];
   const isInteractive = book.mode === 'interactive';
+  const isMagic = book.mode === 'magic';
+  let waitingForGame = false;
 
   book.pages.forEach((page, idx) => {
+    if (waitingForGame) return;
+
     slides.push({ kind: 'page', page });
+
+    if (isMagic && page.game) {
+      if (!page.gameCompletedAt) {
+        waitingForGame = true;
+        return;
+      }
+    }
 
     const isLastExisting = idx === book.pages.length - 1;
     if (!isInteractive || !isLastExisting) return;
@@ -641,9 +702,9 @@ function buildSlides(book: BookDetail): Slide[] {
   });
 
   const lastPage = book.pages[book.pages.length - 1];
-  const storyComplete =
-    !isInteractive ||
-    (lastPage !== undefined && lastPage.pageNumber >= STORY_PAGE_COUNT);
+  const storyComplete = isInteractive
+    ? lastPage !== undefined && lastPage.pageNumber >= STORY_PAGE_COUNT
+    : !waitingForGame;
   if (storyComplete) {
     slides.push({ kind: 'end' });
   }

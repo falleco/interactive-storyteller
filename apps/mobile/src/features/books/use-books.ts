@@ -16,6 +16,11 @@ export interface UseBooksResult {
   refresh: () => Promise<void>;
   create: (input: CreateBookInput) => Promise<CreatedBookResponse>;
   completeRead: (id: string) => Promise<void>;
+  completeGame: (input: {
+    bookId: string;
+    pageId: string;
+    gameId: string;
+  }) => Promise<void>;
   remove: (id: string) => Promise<void>;
   chooseNext: (input: { bookId: string; choiceIndex: number }) => Promise<void>;
 }
@@ -137,6 +142,21 @@ export function useBooks(): UseBooksResult {
     [api],
   );
 
+  const completeGame = useCallback(
+    async (input: { bookId: string; pageId: string; gameId: string }) => {
+      await api.post<void>(
+        `/books/${input.bookId}/pages/${input.pageId}/game/complete`,
+        {
+          gameId: input.gameId,
+          completed: true,
+          score: 1,
+          total: 1,
+        },
+      );
+    },
+    [api],
+  );
+
   const chooseNext = useCallback(
     async (input: { bookId: string; choiceIndex: number }) => {
       await api.post<BookDetail>(`/books/${input.bookId}/choice`, {
@@ -162,6 +182,7 @@ export function useBooks(): UseBooksResult {
     refresh,
     create,
     completeRead,
+    completeGame,
     remove,
     chooseNext,
   };

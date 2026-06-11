@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { Book, BookChoice, BookPage } from '@prisma/client';
+import type { StoryGameDescriptor } from '@wondertales/shared/games';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 
@@ -39,6 +40,8 @@ export interface BookPagePayload {
   narrationText: string;
   imageUrl: string | null;
   audioUrl: string | null;
+  game: StoryGameDescriptor | null;
+  gameCompletedAt: string | null;
   choices: BookChoicePayload[];
 }
 
@@ -209,6 +212,8 @@ function toBookDetail(
       narrationText: p.narrationText,
       imageUrl: p.imageUrl,
       audioUrl: p.audioUrl,
+      game: parseStoryGameDescriptor(p.game),
+      gameCompletedAt: p.gameCompletedAt?.toISOString() ?? null,
       choices: p.choices.map((c) => ({
         id: c.id,
         choiceIndex: c.choiceIndex,
@@ -217,5 +222,36 @@ function toBookDetail(
         selected: c.selected,
       })),
     })),
+  };
+}
+
+function parseStoryGameDescriptor(value: unknown): StoryGameDescriptor | null {
+  if (!value || typeof value !== 'object') return null;
+  const v = value as Record<string, unknown>;
+  const ageRange = v.ageRange;
+  if (
+    typeof v.id !== 'string' ||
+    typeof v.type !== 'string' ||
+    typeof v.title !== 'string' ||
+    typeof v.prompt !== 'string' ||
+    !ageRange ||
+    typeof ageRange !== 'object'
+  ) {
+    return null;
+  }
+  const age = ageRange as Record<string, unknown>;
+  if (typeof age.min !== 'number' || typeof age.max !== 'number') {
+    return null;
+  }
+  return {
+    id: v.id,
+    type: v.type,
+    title: v.title,
+    ageRange: { min: age.min, max: age.max },
+    prompt: v.prompt,
+    config:
+      v.config && typeof v.config === 'object'
+        ? (v.config as Record<string, unknown>)
+        : {},
   };
 }

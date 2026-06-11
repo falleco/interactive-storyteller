@@ -22,3 +22,5 @@ esac
 
 $BASE_DIR/export_godot.sh --target "$BASE_DIR/../apps/mobile" --name demo --preset "$preset" --project $BASE_DIR/demo --platform $platform
 $BASE_DIR/export_godot.sh --target "$BASE_DIR/../apps/mobile" --name fit-puzzle --preset "$preset" --project $BASE_DIR/fit-puzzle --platform $platform
+$BASE_DIR/export_godot.sh --target "$BASE_DIR/../apps/mobile" --name word-puzzle --preset "$preset" --project $BASE_DIR/word-puzzle --platform $platform
+$BASE_DIR/export_godot.sh --target "$BASE_DIR/../apps/mobile" --name nail-paint --preset "$preset" --project $BASE_DIR/nail-paint --platform $platform

@@ -9,7 +9,7 @@ import {
 } from 'class-validator';
 import { SUPPORTED_LANGUAGES } from '../../storytellers/storyteller-catalog';
 
-const ALLOWED_MODES = ['classic', 'interactive'] as const;
+const ALLOWED_MODES = ['classic', 'interactive', 'magic'] as const;
 type AllowedMode = (typeof ALLOWED_MODES)[number];
 
 export class CreateBookDto {
