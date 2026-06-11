@@ -21,17 +21,6 @@ const withPckFiles: ConfigPlugin = (config) => {
       return config;
     }
 
-    const legacyPackPath = path.join(projectRoot, 'ios', 'main.pck');
-    if (fs.existsSync(legacyPackPath)) {
-      fs.rmSync(legacyPackPath, { force: true });
-    }
-
-    project.removeResourceFile(
-      'main.pck',
-      { target: targetUuid },
-      mainGroupKey,
-    );
-
     for (const gameName of availableGames) {
       const sourcePath = path.join(
         projectRoot,
@@ -53,15 +42,21 @@ const withPckFiles: ConfigPlugin = (config) => {
       console.log(`Copied ${sourcePath} to ${destPath}`);
 
       if (!project.hasFile(packName)) {
-        project.addResourceFile(
+        const packFile = project.addFile(
           packName,
+          mainGroupKey,
           {
             defaultEncoding: 4,
             lastKnownFileType: 'file',
-            target: targetUuid,
           },
-          mainGroupKey,
         );
+
+        if (packFile) {
+          packFile.uuid = project.generateUuid();
+          packFile.target = targetUuid;
+          project.addToPbxBuildFileSection(packFile);
+          project.addToPbxResourcesBuildPhase(packFile);
+        }
       }
     }
 

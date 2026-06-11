@@ -2,7 +2,7 @@ import 'tsx/cjs';
 
 module.exports = () => ({
   "expo": {
-    "name": "Wonder Tales",
+    "name": "Merlim Stories",
     "slug": "wondertales",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -20,7 +20,7 @@ module.exports = () => ({
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#0573AF",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
