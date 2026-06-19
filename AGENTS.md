@@ -15,6 +15,7 @@ packages/
 
 ## Tooling
 
+- **Node version**: always run `nvm use` from the repo root before any Node/Yarn/Prisma/Next/Expo tooling. The project version is defined by `.nvmrc`; do not rely on the shell's current `node`.
 - **Package manager**: Yarn 4 (`nodeLinker: node-modules`). Never enable PnP — RN/Expo doesn't tolerate it.
 - **Lint/format**: Biome 2.4 at repo root (`biome.json`). Single config governs everything. Run `yarn check:fix`.
 - **TypeScript**: TS 6.0. Each workspace has its own `tsconfig.json`. The API uses `rootDir: ./src` + `tsBuildInfoFile: ./dist/.tsbuildinfo` so stale incremental cache gets deleted by Nest's `deleteOutDir`.
@@ -28,6 +29,7 @@ packages/
 - Be token-frugal. Do not inspect logs, huge command output, full diffs, or generated files just to "be thorough"; collect and read them only after a concrete failure, suspicion, or verification need.
 - When controlling the mobile app, do not narrate every click, wait, snapshot, or intended next step. Execute the flow, verify the result, and report the outcome. Interrupt the user only when permission, credentials, device state, or an external decision is needed.
 - Prefer targeted checks over broad reads: use `rg`, scoped `sed`, focused snapshots, exact selectors/refs, and small diffs.
+- Do not start apps on alternate ports to avoid conflicts. Use the intended project port; if that port is occupied, identify and stop the existing process, then start the app again on the intended port.
 - Keep local services clean. Stop Metro/API sessions and `docker compose down` after validation unless the user asked to leave them running.
 
 ## Auth — Better Auth

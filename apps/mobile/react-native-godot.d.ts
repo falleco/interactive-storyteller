@@ -1,1 +1,1 @@
-declare module "@borndotcom/react-native-godot";
+declare module '@borndotcom/react-native-godot';

@@ -1,49 +1,77 @@
 import { Tabs } from 'expo-router';
+import { useCallback } from 'react';
+import {
+  type Animated,
+  type StyleProp,
+  useWindowDimensions,
+  type ViewStyle,
+} from 'react-native';
 import { TabBar } from '~/shared/components/core/tab-bar';
-import { HapticTab } from '~/shared/components/haptic-tab';
-import { IconSymbol } from '~/shared/components/ui/icon-symbol';
-import { Colors } from '~/shared/constants/theme';
-import { useColorScheme } from '~/shared/hooks/use-color-scheme';
+
+type TabSceneStyleInterpolator = (props: {
+  current: { progress: Animated.Value };
+}) => { sceneStyle: Animated.WithAnimatedValue<StyleProp<ViewStyle>> };
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const { width } = useWindowDimensions();
+  const sceneSlideDistance = Math.max(width, 1);
+  const slideSceneStyleInterpolator = useCallback<TabSceneStyleInterpolator>(
+    ({ current }) => ({
+      sceneStyle: {
+        opacity: 1,
+        transform: [
+          {
+            translateX: current.progress.interpolate({
+              inputRange: [-1, 0, 1],
+              outputRange: [-sceneSlideDistance, 0, sceneSlideDistance],
+            }),
+          },
+        ],
+      },
+    }),
+    [sceneSlideDistance],
+  );
 
   return (
     <Tabs
-      // First entry is the default route — Library opens on cold start.
+      // Stories stays the default route even though it is visually centered.
       initialRouteName="index"
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        animation: 'shift',
         headerShown: false,
-        tabBarButton: HapticTab,
+        sceneStyleInterpolator: slideSceneStyleInterpolator,
+        tabBarHideOnKeyboard: true,
+        tabBarShowLabel: false,
+        transitionSpec: {
+          animation: 'spring',
+          config: {
+            damping: 24,
+            mass: 0.9,
+            stiffness: 190,
+          },
+        },
       }}
       tabBar={(props) => <TabBar {...props} />}
     >
       <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Library',
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="books.vertical.fill" color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="games"
         options={{
           title: 'Games',
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="gamecontroller.fill" color={color} />
-          ),
+          tabBarAccessibilityLabel: 'Games',
+        }}
+      />
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Stories',
+          tabBarAccessibilityLabel: 'Stories',
         }}
       />
       <Tabs.Screen
         name="family"
         options={{
           title: 'Family',
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="person.2.fill" color={color} />
-          ),
+          tabBarAccessibilityLabel: 'Family',
         }}
       />
     </Tabs>

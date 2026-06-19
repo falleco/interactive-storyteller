@@ -26,31 +26,6 @@ export const GetAppConfiguration = async () => {
       endpoint: config.S3_ENDPOINT,
       publicBaseUrl: config.S3_PUBLIC_BASE_URL,
     },
-    ai: {
-      openai: {
-        apiKey: config.OPENAI_API_KEY ?? '',
-      },
-      replicate: {
-        apiToken: config.REPLICATE_API_TOKEN ?? '',
-      },
-      providers: {
-        text: (config.AI_TEXT_PROVIDER ?? 'openai') as 'openai' | 'replicate',
-        image: (config.AI_IMAGE_PROVIDER ?? 'replicate') as
-          | 'openai'
-          | 'replicate',
-        speech: (config.AI_SPEECH_PROVIDER ?? 'replicate') as
-          | 'openai'
-          | 'replicate',
-      },
-      models: {
-        text: config.AI_TEXT_MODEL ?? 'gpt-4o-mini',
-        image:
-          config.AI_IMAGE_MODEL ?? // ??
-          'prunaai/z-image-turbo',
-        // ?? 'black-forest-labs/flux-2-klein-4b',
-        speech: config.AI_SPEECH_MODEL ?? 'minimax/speech-2.8-turbo',
-      },
-    },
   };
 };
 

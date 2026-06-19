@@ -4,7 +4,6 @@ import { Inject, Module, type OnApplicationShutdown } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TerminusModule } from '@nestjs/terminus';
 import Redis from 'ioredis';
-import { BOOK_MEDIA_QUEUE } from '../books/book-media.queue';
 import type { AppConfigurationType } from '../config/configuration';
 import { USER_EVENTS_QUEUE } from '../queue/user-events.queue';
 import { HealthController } from './health.controller';
@@ -14,10 +13,7 @@ import { HEALTH_REDIS_CLIENT } from './health.tokens';
   imports: [
     TerminusModule,
     RedisHealthModule,
-    BullModule.registerQueue(
-      { name: BOOK_MEDIA_QUEUE },
-      { name: USER_EVENTS_QUEUE },
-    ),
+    BullModule.registerQueue({ name: USER_EVENTS_QUEUE }),
   ],
   controllers: [HealthController],
   providers: [

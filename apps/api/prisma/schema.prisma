@@ -243,3 +243,93 @@ model StoryTemplate {
   @@index([enabled, sortOrder])
   @@map("story_template")
 }
+
+/**
+ * Globally curated books produced by the builder app. These are not owned by a
+ * parent account and are read by the public API as published catalog content.
+ */
+model CuratedBook {
+  id                      String    @id @default(cuid())
+  slug                    String    @unique
+  status                  String    @default("draft")
+  builderPhase            String    @default("text") @map("builder_phase")
+  baseLanguage            String    @default("en") @map("base_language")
+  storyteller             String    @default("sparkle")
+  defaultVoice            String    @default("sparkle") @map("default_voice")
+  ageMin                  Int       @default(3) @map("age_min")
+  ageMax                  Int       @default(8) @map("age_max")
+  prompt                  String
+  stylePrompt             String?   @map("style_prompt")
+  imageAspect             String    @default("phone") @map("image_aspect")
+  coverImagePrompt        String?   @map("cover_image_prompt")
+  coverImageUrl           String?   @map("cover_image_url")
+  coverImageObjectKey     String?   @map("cover_image_object_key")
+  characters              Json?
+  generationMeta          Json?     @map("generation_meta")
+  publishedAt             DateTime? @map("published_at")
+  createdAt               DateTime  @default(now()) @map("created_at")
+  updatedAt               DateTime  @updatedAt @map("updated_at")
+
+  localizations CuratedBookLocalization[]
+  pages         CuratedBookPage[]
+
+  @@index([status, publishedAt])
+  @@map("curated_book")
+}
+
+model CuratedBookLocalization {
+  id           String      @id @default(cuid())
+  bookId       String      @map("book_id")
+  book         CuratedBook @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  language     String
+  title        String
+  summary      String
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  @@unique([bookId, language])
+  @@index([language])
+  @@map("curated_book_localization")
+}
+
+model CuratedBookPage {
+  id                 String      @id @default(cuid())
+  bookId             String      @map("book_id")
+  book               CuratedBook @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  pageNumber         Int         @map("page_number")
+  pageType           String      @default("story") @map("page_type")
+  imageAspect        String      @default("phone") @map("image_aspect")
+  imagePrompt        String?     @map("image_prompt")
+  imageUrl           String?     @map("image_url")
+  imageObjectKey     String?     @map("image_object_key")
+  characterIds       Json?       @map("character_ids")
+  game               Json?
+  createdAt          DateTime    @default(now()) @map("created_at")
+  updatedAt          DateTime    @updatedAt @map("updated_at")
+
+  localizations CuratedBookPageLocalization[]
+
+  @@unique([bookId, pageNumber])
+  @@index([bookId, createdAt])
+  @@map("curated_book_page")
+}
+
+model CuratedBookPageLocalization {
+  id            String          @id @default(cuid())
+  pageId        String          @map("page_id")
+  page          CuratedBookPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  language      String
+  content       String
+  contentHtml   String?         @map("content_html")
+  narrationText String          @map("narration_text")
+  narrationHtml String?         @map("narration_html")
+  narrationBlocks Json?         @map("narration_blocks")
+  audioUrl      String?         @map("audio_url")
+  audioObjectKey String?        @map("audio_object_key")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  @@unique([pageId, language])
+  @@index([language])
+  @@map("curated_book_page_localization")
+}

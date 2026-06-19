@@ -2,44 +2,23 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import EventSource from 'react-native-sse';
 import { resolveApiBaseURL, useApi } from '~/shared/api';
 import { useAuth } from '~/shared/hooks/use-auth';
-import type {
-  BookDetail,
-  BookSummary,
-  CreateBookInput,
-  CreatedBookResponse,
-} from './types';
+import type { BookDetail, BookSummary } from './types';
 
 export interface UseBooksResult {
   books: BookSummary[];
   isLoading: boolean;
   error: Error | null;
   refresh: () => Promise<void>;
-  create: (input: CreateBookInput) => Promise<CreatedBookResponse>;
   completeRead: (id: string) => Promise<void>;
   completeGame: (input: {
     bookId: string;
     pageId: string;
     gameId: string;
   }) => Promise<void>;
-  remove: (id: string) => Promise<void>;
-  chooseNext: (input: { bookId: string; choiceIndex: number }) => Promise<void>;
 }
 
 /**
- * Module-level pub-sub so multiple `useBooks` instances (library tab,
- * wonder-sheet wizard, family tab stats) stay in sync. Without this,
- * a `create` from the wonder-sheet only mutates its own local state
- * and the library has to wait for the next `useFocusEffect` tick to
- * notice — which feels like "I had to pull-to-refresh to see the
- * new story" from the user's perspective.
- */
-const bookListeners = new Set<() => void>();
-function notifyBooksChanged(): void {
-  for (const listener of bookListeners) listener();
-}
-
-/**
- * Patcher pub-sub: a SECOND channel that lets a single book be updated
+ * Patcher pub-sub: lets a single book be updated
  * in-place across every mounted `useBooks` list without refetching.
  * Mainly fed by `useBookDetail`'s SSE snapshot stream — when the cover
  * image finishes rendering or the book flips status, those changes
@@ -80,20 +59,6 @@ export function useBooks(): UseBooksResult {
     refresh();
   }, [refresh]);
 
-  // Wake this instance whenever any other `useBooks` mutates the list
-  // (create / remove). Re-fetches against the server so the optimistic
-  // change made by another instance is reconciled with authoritative
-  // data and ordering.
-  useEffect(() => {
-    const listener = () => {
-      refresh();
-    };
-    bookListeners.add(listener);
-    return () => {
-      bookListeners.delete(listener);
-    };
-  }, [refresh]);
-
   // Targeted in-place patches (e.g. cover image arrived for an
   // in-flight book via SSE). Avoids re-fetching the whole list — the
   // patch payload is whatever fields the snapshot stream pushes.
@@ -108,32 +73,6 @@ export function useBooks(): UseBooksResult {
       bookPatchListeners.delete(listener);
     };
   }, []);
-
-  const create = useCallback(
-    async (input: CreateBookInput) => {
-      const created = await api.post<CreatedBookResponse>('/books', input);
-      // Optimistic prepend; the next refresh will reconcile with server state.
-      setBooks((prev) => [
-        {
-          id: created.id,
-          title: created.title,
-          status: created.status,
-          mode: created.mode,
-          language: created.language,
-          storyteller: created.storyteller,
-          coverImageUrl: null,
-          pageCount: created.pageCount,
-          completedReadCount: 0,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        ...prev,
-      ]);
-      notifyBooksChanged();
-      return created;
-    },
-    [api],
-  );
 
   const completeRead = useCallback(
     async (id: string) => {
@@ -157,34 +96,13 @@ export function useBooks(): UseBooksResult {
     [api],
   );
 
-  const chooseNext = useCallback(
-    async (input: { bookId: string; choiceIndex: number }) => {
-      await api.post<BookDetail>(`/books/${input.bookId}/choice`, {
-        choiceIndex: input.choiceIndex,
-      });
-    },
-    [api],
-  );
-
-  const remove = useCallback(
-    async (id: string) => {
-      await api.delete<void>(`/books/${id}`);
-      setBooks((prev) => prev.filter((b) => b.id !== id));
-      notifyBooksChanged();
-    },
-    [api],
-  );
-
   return {
     books,
     isLoading,
     error,
     refresh,
-    create,
     completeRead,
     completeGame,
-    remove,
-    chooseNext,
   };
 }
 
@@ -203,9 +121,8 @@ type BookSseEventName = 'snapshot' | 'ping';
  * a change (media stored, status flip, new interactive page appended), so we
  * don't need to poll.
  *
- * `refetch` does a one-shot GET — useful right after a mutating action
- * (e.g. chooseNext) for callers that prefer not to wait for the next pushed
- * snapshot.
+ * `refetch` does a one-shot GET — useful right after a mutating action for
+ * callers that prefer not to wait for the next pushed snapshot.
  */
 export function useBookDetail(
   bookId: string | null | undefined,
@@ -264,6 +181,7 @@ export function useBookDetail(
           title: detail.title,
           status: detail.status,
           coverImageUrl: detail.coverImageUrl,
+          defaultVoice: detail.defaultVoice,
           pageCount: detail.pageCount,
           completedReadCount: detail.completedReadCount,
           updatedAt: detail.updatedAt,

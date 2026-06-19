@@ -1,3 +1,8 @@
+export {
+  type DefaultGodotGameEvent,
+  type DefaultGodotGameEventType,
+  DefaultGodotGamePage,
+} from './default-godot-game-page';
 export { GameBackButton } from './game-back-button';
 export {
   destroyGodotGame,

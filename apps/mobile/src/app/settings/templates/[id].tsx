@@ -11,10 +11,10 @@ import { useThemeColor } from '~/shared/hooks/use-theme-color';
 import { cn } from '~/shared/lib/cn';
 
 const LANGUAGE_LABELS: Record<Language, string> = {
-  pt: 'Português',
+  pt: 'Portuguese',
   en: 'English',
-  fr: 'Français',
-  it: 'Italiano',
+  fr: 'French',
+  it: 'Italian',
 };
 
 export default function TemplateEditorScreen() {
@@ -145,7 +145,7 @@ export default function TemplateEditorScreen() {
 
         <Field
           label="Prompt"
-          hint="The full text the AI reads. Include cenários, personagens, itens e possíveis temas pra dar contexto."
+          hint="The full text the AI reads. Include scenes, characters, items, and possible themes for context."
         >
           <TextInput
             value={theme}

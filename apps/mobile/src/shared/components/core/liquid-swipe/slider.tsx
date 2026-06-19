@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef } from 'react';
-import { StyleSheet } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   cancelAnimation,
@@ -39,6 +39,13 @@ const HINT_SLIDE_RATIO = 0.45;
  * being stretched — not big enough to compete with the button itself.
  */
 const HINT_ICON_LEAD = 3;
+const NEXT_BACKDROP_COLOR = '#050505';
+const NEXT_BACKDROP_MAX_OPACITY = 0.48;
+const EDGE_CONTROL_WIDTH = MARGIN_WIDTH + HINT_AMPLITUDE + 20;
+const EDGE_APPEAR_DURATION = 420;
+const EDGE_HIDE_DURATION = 180;
+const BUTTON_COMMIT_HIDE_DURATION = 110;
+const EDGE_APPEAR_EASING = Easing.out(Easing.cubic);
 
 interface SliderProps {
   index: number;
@@ -55,6 +62,13 @@ interface SliderProps {
    * release.
    */
   hintAfterMs?: number;
+  /**
+   * Imperative page-turn trigger for cases where the story advances from an
+   * external event, such as a child completing an embedded game.
+   */
+  autoAdvanceKey?: string | null;
+  gestureEnabled?: boolean;
+  onAutoAdvanceStart?: (key: string) => void;
 }
 
 /**
@@ -72,6 +86,9 @@ export function Slider({
   prev,
   next,
   hintAfterMs = 3000,
+  autoAdvanceKey,
+  gestureEnabled = true,
+  onAutoAdvanceStart,
 }: SliderProps) {
   const hasPrev = !!prev;
   const hasNext = !!next;
@@ -81,6 +98,8 @@ export function Slider({
   const activeSide = useSharedValue<WaveSide>(WaveSide.NONE);
   const isTransitioningLeft = useSharedValue(false);
   const isTransitioningRight = useSharedValue(false);
+  const leftButtonVisibility = useSharedValue(0);
+  const rightButtonVisibility = useSharedValue(0);
   /** 1 while the idle hint yo-yo is running, 0 otherwise. */
   const hintActive = useSharedValue(0);
   /**
@@ -91,6 +110,7 @@ export function Slider({
    */
   const iconOffset = useSharedValue(0);
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastAutoAdvanceKeyRef = useRef<string | null>(null);
 
   const startHint = useCallback(() => {
     'worklet';
@@ -167,17 +187,115 @@ export function Slider({
     }, hintAfterMs);
   }, [hasNext, hintAfterMs, startHint, clearHintTimer]);
 
+  const animateToNext = useCallback(() => {
+    if (!hasNext) return;
+
+    clearHintTimer();
+    hintActive.value = 0;
+    cancelAnimation(right.x);
+    cancelAnimation(iconOffset);
+    activeSide.value = WaveSide.RIGHT;
+    isTransitioningRight.value = true;
+    rightButtonVisibility.value = withTiming(0, {
+      duration: BUTTON_COMMIT_HIDE_DURATION,
+    });
+    iconOffset.value = withTiming(0, { duration: 120 });
+    right.y.value = withSpring(HEIGHT / 2);
+    right.x.value = withSpring(
+      WIDTH,
+      {
+        velocity: 1400,
+        overshootClamping: true,
+      },
+      () => {
+        runOnJS(setIndex)(index + 1);
+      },
+    );
+  }, [
+    activeSide,
+    clearHintTimer,
+    hasNext,
+    hintActive,
+    iconOffset,
+    index,
+    isTransitioningRight,
+    right,
+    rightButtonVisibility,
+    setIndex,
+  ]);
+
+  const animateToPrev = useCallback(() => {
+    if (!hasPrev) return;
+
+    clearHintTimer();
+    hintActive.value = 0;
+    cancelAnimation(left.x);
+    activeSide.value = WaveSide.LEFT;
+    zIndex.value = 100;
+    isTransitioningLeft.value = true;
+    leftButtonVisibility.value = withTiming(0, {
+      duration: BUTTON_COMMIT_HIDE_DURATION,
+    });
+    left.y.value = withSpring(HEIGHT / 2);
+    left.x.value = withSpring(
+      PREV,
+      {
+        velocity: -1400,
+        overshootClamping: true,
+      },
+      () => {
+        runOnJS(setIndex)(index - 1);
+      },
+    );
+  }, [
+    activeSide,
+    clearHintTimer,
+    hasPrev,
+    hintActive,
+    index,
+    isTransitioningLeft,
+    left,
+    leftButtonVisibility,
+    setIndex,
+    zIndex,
+  ]);
+
   // Settle to the resting ledge whenever:
   //  - the index changes (after a commit), OR
   //  - a neighbour gains/loses content (e.g. audio finishes and the parent
   //    arms `next`).
-  // The spring runs even when the corresponding wave isn't mounted yet —
-  // by the time the Wave appears, x.value is already at MARGIN_WIDTH so
-  // the ledge animates in cleanly instead of staying offscreen.
+  // Timing keeps the ledge/button entering smoothly instead of popping from
+  // offscreen into the resting MARGIN_WIDTH position.
   useEffect(() => {
-    left.x.value = hasPrev ? withSpring(MARGIN_WIDTH) : 0;
-    right.x.value = hasNext ? withSpring(MARGIN_WIDTH) : 0;
-  }, [index, hasPrev, hasNext, left, right]);
+    left.x.value = hasPrev
+      ? withTiming(MARGIN_WIDTH, {
+          duration: EDGE_APPEAR_DURATION,
+          easing: EDGE_APPEAR_EASING,
+        })
+      : withTiming(0, { duration: EDGE_HIDE_DURATION });
+    leftButtonVisibility.value = withTiming(hasPrev ? 1 : 0, {
+      duration: hasPrev ? EDGE_APPEAR_DURATION : EDGE_HIDE_DURATION,
+      easing: EDGE_APPEAR_EASING,
+    });
+    right.x.value = hasNext
+      ? withTiming(MARGIN_WIDTH, {
+          duration: EDGE_APPEAR_DURATION,
+          easing: EDGE_APPEAR_EASING,
+        })
+      : withTiming(0, { duration: EDGE_HIDE_DURATION });
+    rightButtonVisibility.value = withTiming(hasNext ? 1 : 0, {
+      duration: hasNext ? EDGE_APPEAR_DURATION : EDGE_HIDE_DURATION,
+      easing: EDGE_APPEAR_EASING,
+    });
+  }, [
+    index,
+    hasPrev,
+    hasNext,
+    left,
+    right,
+    leftButtonVisibility,
+    rightButtonVisibility,
+  ]);
 
   // Schedule the hint once the next-side handle becomes available, and
   // tear it down on unmount. Touch-driven cancellation lives in the pan
@@ -187,16 +305,29 @@ export function Slider({
       scheduleHint();
     } else {
       clearHintTimer();
-      stopHint();
+      hintActive.value = 0;
+      cancelAnimation(right.x);
+      cancelAnimation(iconOffset);
+      right.x.value = withTiming(0, { duration: EDGE_HIDE_DURATION });
+      iconOffset.value = withTiming(0, { duration: 160 });
     }
     return () => {
       clearHintTimer();
     };
   }, [hasNext, scheduleHint, clearHintTimer, stopHint]);
 
+  useEffect(() => {
+    if (!autoAdvanceKey || !hasNext) return;
+    if (lastAutoAdvanceKeyRef.current === autoAdvanceKey) return;
+
+    lastAutoAdvanceKeyRef.current = autoAdvanceKey;
+    onAutoAdvanceStart?.(autoAdvanceKey);
+    animateToNext();
+  }, [animateToNext, autoAdvanceKey, hasNext, onAutoAdvanceStart]);
+
   // 0..1 progress derived from where the wave sits inside the hint
-  // amplitude band. Used to drive both the slide-content nudge and the
-  // PullButton's purple tint so they move in lockstep with the wave.
+  // amplitude band. Used to drive the slide-content nudge in lockstep
+  // with the pulsing page edge.
   const hintProgress = useDerivedValue(() => {
     if (activeSide.value !== WaveSide.NONE) return 0;
     if (hintActive.value === 0) return 0;
@@ -210,7 +341,30 @@ export function Slider({
     ],
   }));
 
+  const nextBackdropStyle = useAnimatedStyle(() => {
+    const progress = Math.min(
+      Math.max((right.x.value - MARGIN_WIDTH) / (WIDTH - MARGIN_WIDTH), 0),
+      1,
+    );
+
+    return {
+      opacity: NEXT_BACKDROP_MAX_OPACITY * (1 - progress),
+    };
+  });
+
+  const prevBackdropStyle = useAnimatedStyle(() => {
+    const progress = Math.min(
+      Math.max((left.x.value - MARGIN_WIDTH) / (WIDTH - MARGIN_WIDTH), 0),
+      1,
+    );
+
+    return {
+      opacity: NEXT_BACKDROP_MAX_OPACITY * (1 - progress),
+    };
+  });
+
   const pan = Gesture.Pan()
+    .enabled(gestureEnabled)
     // Only activate the wave-pull gesture on clear horizontal motion so
     // a vertical scroll inside the slide (e.g. long page content) flows
     // through to a nested ScrollView instead of being captured here.
@@ -253,6 +407,11 @@ export function Slider({
         // those keys — `overshootClamping: true` already makes the spring
         // stop the moment it crosses the target, which is what we need.
         isTransitioningLeft.value = dest === PREV;
+        if (isTransitioningLeft.value) {
+          leftButtonVisibility.value = withTiming(0, {
+            duration: BUTTON_COMMIT_HIDE_DURATION,
+          });
+        }
         left.x.value = withSpring(
           dest,
           {
@@ -273,6 +432,14 @@ export function Slider({
       } else if (activeSide.value === WaveSide.RIGHT) {
         const dest = snapPoint(event.x, event.velocityX, RIGHT_SNAP_POINTS);
         isTransitioningRight.value = dest === NEXT;
+        if (isTransitioningRight.value) {
+          rightButtonVisibility.value = withTiming(0, {
+            duration: BUTTON_COMMIT_HIDE_DURATION,
+          });
+          iconOffset.value = withTiming(0, {
+            duration: BUTTON_COMMIT_HIDE_DURATION,
+          });
+        }
         right.x.value = withSpring(
           WIDTH - dest,
           {
@@ -315,12 +482,27 @@ export function Slider({
               side={WaveSide.LEFT}
               isTransitioning={isTransitioningLeft}
             >
-              {prev}
+              <Animated.View
+                pointerEvents="none"
+                style={StyleSheet.absoluteFill}
+              >
+                {prev}
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    StyleSheet.absoluteFill,
+                    {
+                      backgroundColor: NEXT_BACKDROP_COLOR,
+                    },
+                    prevBackdropStyle,
+                  ]}
+                />
+              </Animated.View>
             </Wave>
             <PullButton
               position={left}
               side={WaveSide.LEFT}
-              activeSide={activeSide}
+              visibility={leftButtonVisibility}
             />
           </Animated.View>
         )}
@@ -331,18 +513,65 @@ export function Slider({
               side={WaveSide.RIGHT}
               isTransitioning={isTransitioningRight}
             >
-              {next}
+              <Animated.View
+                pointerEvents="none"
+                style={StyleSheet.absoluteFill}
+              >
+                {next}
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    StyleSheet.absoluteFill,
+                    {
+                      backgroundColor: NEXT_BACKDROP_COLOR,
+                    },
+                    nextBackdropStyle,
+                  ]}
+                />
+              </Animated.View>
             </Wave>
             <PullButton
               position={right}
               side={WaveSide.RIGHT}
-              activeSide={activeSide}
-              hintProgress={hintProgress}
+              visibility={rightButtonVisibility}
               iconOffset={iconOffset}
             />
           </Animated.View>
+        )}
+        {prev && gestureEnabled && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Previous page"
+            onPress={animateToPrev}
+            style={styles.leftEdgeControl}
+          />
+        )}
+        {next && gestureEnabled && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Next page"
+            onPress={animateToNext}
+            style={styles.rightEdgeControl}
+          />
         )}
       </Animated.View>
     </GestureDetector>
   );
 }
+
+const styles = StyleSheet.create({
+  leftEdgeControl: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: EDGE_CONTROL_WIDTH,
+  },
+  rightEdgeControl: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    width: EDGE_CONTROL_WIDTH,
+  },
+});

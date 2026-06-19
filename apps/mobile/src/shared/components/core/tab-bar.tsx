@@ -9,47 +9,51 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSequence,
+  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { icons } from '../icons';
-import { GlassView } from './glass-view';
+import { isTabBarRouteName, tabBarItems } from '../icons';
 import { TabBarButton } from './tab-bar-button';
 
 /**
- * Geometry constants exported so other components (notably the
- * `WonderSheet` blob) can compute the FAB's absolute position from
- * window dimensions + safe-area insets without re-implementing the
- * layout formula.
+ * Geometry constants for the fixed bottom tab bar.
  */
-export const TAB_BAR_HEIGHT = 68;
-const TAB_BAR_OUTER_PADDING = 18;
-const INNER_PADDING = 4;
-const PILL_RADIUS = 999;
-const CREATE_BUTTON_SIZE = 56;
-export const CREATE_BUTTON_RADIUS = CREATE_BUTTON_SIZE / 2;
+export const TAB_BAR_HEIGHT = 82;
+const TAB_BAR_OUTER_PADDING = 0;
+const INNER_PADDING = 7;
+const ACTIVE_RING_SIZE = 92;
 
 /** Matches the runtime formula used in `TabBar` for paddingBottom. */
 export function tabBarPaddingBottom(bottomInset: number): number {
-  return bottomInset > 0 ? Math.max(bottomInset - 22, 6) : 12;
+  return Math.max(bottomInset, 0);
 }
 
-// Slide animation for the active-tab indicator pill.
-const SLIDE_DURATION = 380;
-const SLIDE_EASING = Easing.bezier(0.4, 0, 0.1, 1);
-// Two-phase squeeze that makes the pill feel rubbery as it moves.
-const STRETCH_SCALE = 1.12;
-const STRETCH_UP_DURATION = 150;
-const STRETCH_UP_EASING = Easing.bezier(0.2, 0, 0, 1);
-const STRETCH_DOWN_DURATION = 320;
-const STRETCH_DOWN_EASING = Easing.bezier(0.34, 1.4, 0.64, 1);
+// Slide animation for the active-tab circle.
+const SLIDE_SPRING = {
+  damping: 14,
+  mass: 0.8,
+  stiffness: 165,
+};
+const BUMP_SCALE = 1.08;
+const BUMP_UP_DURATION = 120;
+const BUMP_UP_EASING = Easing.bezier(0.2, 0, 0, 1);
+const BUMP_DOWN_DURATION = 240;
+const BUMP_DOWN_EASING = Easing.bezier(0.34, 1.4, 0.64, 1);
 
 export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const { width: screenWidth } = useWindowDimensions();
   const { bottom: bottomInset } = useSafeAreaInsets();
 
   const routes = state.routes.filter(
-    (route) => !['_sitemap', '+not-found'].includes(route.name),
+    (route) =>
+      !['_sitemap', '+not-found'].includes(route.name) &&
+      isTabBarRouteName(route.name),
+  );
+  const activeRouteKey = state.routes[state.index]?.key;
+  const activeIndex = Math.max(
+    routes.findIndex((route) => route.key === activeRouteKey),
+    0,
   );
 
   const tabWidth =
@@ -58,44 +62,38 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 
   // Selected index as a shared value so the indicator can animate independently
   // of React renders.
-  const indexShared = useSharedValue(state.index);
+  const indexShared = useSharedValue(activeIndex);
   useEffect(() => {
-    indexShared.value = state.index;
-  }, [state.index, indexShared]);
+    indexShared.set(activeIndex);
+  }, [activeIndex, indexShared]);
 
-  // The "+" FAB used to live here; it's now rendered by `<WonderSheet>`
-  // at the root so it can sit visually on top of the Skia blob. The
-  // tab-bar just keeps the regular tabs.
-
-  // Sit close to the bottom edge but leave just enough room so the glass
-  // bar floats above the home indicator without bleeding into it. Devices
-  // without an indicator (older iPhones / Android with gesture nav off)
-  // get a fixed comfortable gap.
-  const paddingBottom = tabBarPaddingBottom(bottomInset);
+  // The nav is fixed to the bottom edge. Safe-area space is inside the bar
+  // so the bottom of the screen is always occupied by the navbar itself.
+  const bottomPadding = tabBarPaddingBottom(bottomInset);
 
   return (
-    <View
-      pointerEvents="box-none"
-      style={[styles.outerContainer, { paddingBottom }]}
-    >
-      <GlassView
-        effect="regular"
-        interactive
-        style={styles.bar}
-        backgroundColor="rgba(255, 255, 255, 0.08)"
+    <View pointerEvents="box-none" style={styles.outerContainer}>
+      <View
+        style={[
+          styles.bar,
+          {
+            height: TAB_BAR_HEIGHT + bottomPadding,
+            paddingBottom: INNER_PADDING + bottomPadding,
+          },
+        ]}
       >
         <Indicator indexShared={indexShared} tabWidth={tabWidth} />
 
         {routes.map((route, index) => {
           const { options } = descriptors[route.key];
-          const Icon = icons[route.name as keyof typeof icons];
-          if (!Icon) return null;
+          const item = tabBarItems[route.name as keyof typeof tabBarItems];
 
-          const isFocused = state.index === index;
-          const label =
+          const isFocused = activeRouteKey === route.key;
+          const fallbackLabel =
             typeof options.tabBarLabel === 'string'
               ? options.tabBarLabel
-              : (options.title ?? route.name);
+              : (options.title ?? item.label);
+          const label = options.tabBarAccessibilityLabel ?? fallbackLabel;
 
           const onPress = () => {
             const event = navigation.emit({
@@ -127,17 +125,17 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
               accessibilityRole="button"
               accessibilityLabel={label}
               accessibilityState={isFocused ? { selected: true } : {}}
+              hitSlop={6}
             >
-              <TabBarButton isFocused={isFocused} Icon={Icon} />
+              <TabBarButton
+                isFocused={isFocused}
+                label={item.label}
+                source={item.source}
+              />
             </Pressable>
           );
         })}
-      </GlassView>
-
-      {/* Both the create FAB *and* the sheet itself live in
-          `<WonderSheet>` (mounted by `<WonderSheetHost>` at the root)
-          so the FAB sits visually on top of the Skia blob — otherwise
-          the white blob would cover the purple button. */}
+      </View>
     </View>
   );
 }
@@ -149,51 +147,50 @@ function Indicator({
   indexShared: SharedValue<number>;
   tabWidth: number;
 }) {
-  const translateX = useSharedValue(indexShared.value * tabWidth);
-  const scaleX = useSharedValue(1);
-  const direction = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const bumpScale = useSharedValue(1);
 
   // Re-sync (without animating) only when tabWidth changes — rotation or
   // dynamic route count. Do NOT depend on the active index here: that would
   // snap the pill on every tab tap, stealing the animation that the
   // useAnimatedReaction below is responsible for.
   useEffect(() => {
-    translateX.value = Math.round(indexShared.value) * tabWidth;
+    translateX.set(Math.round(indexShared.get()) * tabWidth);
   }, [tabWidth, indexShared, translateX]);
 
   useAnimatedReaction(
-    () => Math.round(indexShared.value),
+    () => Math.round(indexShared.get()),
     (current, previous) => {
       if (previous === null || current === previous) return;
-      direction.value = current > previous ? 1 : -1;
 
-      translateX.value = withTiming(current * tabWidth, {
-        duration: SLIDE_DURATION,
-        easing: SLIDE_EASING,
-      });
+      translateX.set(withSpring(current * tabWidth, SLIDE_SPRING));
 
-      scaleX.value = withSequence(
-        withTiming(STRETCH_SCALE, {
-          duration: STRETCH_UP_DURATION,
-          easing: STRETCH_UP_EASING,
-        }),
-        withTiming(1, {
-          duration: STRETCH_DOWN_DURATION,
-          easing: STRETCH_DOWN_EASING,
-        }),
+      bumpScale.set(
+        withSequence(
+          withTiming(BUMP_SCALE, {
+            duration: BUMP_UP_DURATION,
+            easing: BUMP_UP_EASING,
+          }),
+          withTiming(1, {
+            duration: BUMP_DOWN_DURATION,
+            easing: BUMP_DOWN_EASING,
+          }),
+        ),
       );
     },
   );
 
   const animatedStyle = useAnimatedStyle(() => {
-    // Anchor the stretch to the trailing edge so the pill seems to chase
-    // the destination rather than expand around its centre.
-    const scaleOffset = (-direction.value * tabWidth * (scaleX.value - 1)) / 2;
     return {
-      width: tabWidth,
+      width: ACTIVE_RING_SIZE,
+      height: ACTIVE_RING_SIZE,
+      borderRadius: ACTIVE_RING_SIZE / 2,
       transform: [
-        { translateX: translateX.value + scaleOffset },
-        { scaleX: scaleX.value },
+        {
+          translateX:
+            translateX.get() + Math.max((tabWidth - ACTIVE_RING_SIZE) / 2, 0),
+        },
+        { scale: bumpScale.get() },
       ],
     };
   });
@@ -215,36 +212,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: TAB_BAR_OUTER_PADDING,
   },
   bar: {
-    height: TAB_BAR_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: INNER_PADDING,
-    borderRadius: PILL_RADIUS,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    paddingTop: INNER_PADDING,
+    paddingHorizontal: INNER_PADDING,
+    overflow: 'visible',
+    backgroundColor: 'rgba(7, 5, 15, 0.96)',
+    borderTopWidth: 2,
+    borderTopColor: 'rgba(255, 255, 255, 0.82)',
+    elevation: 0,
   },
   cell: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     height: '100%',
+    overflow: 'visible',
   },
   indicator: {
     position: 'absolute',
-    // Match the GlassView's own padding on every side so the pill aligns
-    // with the tab cells, which sit inside the content box. RN places
-    // absolute children relative to the parent's padding-box edge, so
-    // `left: 0` would push the pill 4px to the left of tab 0; setting
-    // `left: INNER_PADDING` plants it on the first cell's left edge.
-    top: INNER_PADDING,
-    bottom: INNER_PADDING,
+    // The active ring intentionally rises above the nav bar so the selected
+    // sticker feels pinned on top of the dock.
+    top: -18,
     left: INNER_PADDING,
-    borderRadius: PILL_RADIUS,
-    // Tailwind purple-500 (168, 85, 247) translucent so it tints rather than
-    // covers the glass underneath; brighter purple-400-ish border to crisp
-    // the pill edge against the bar.
-    backgroundColor: 'rgba(168, 85, 247, 0.35)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(192, 132, 252, 0.7)',
+    backgroundColor: 'rgba(7, 5, 15, 0.98)',
+    borderWidth: 4,
+    borderColor: 'rgba(255, 255, 255, 0.92)',
+    shadowColor: '#FF5DA2',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.32,
+    shadowRadius: 14,
   },
 });

@@ -1,4 +1,5 @@
 import type { StoryGameDescriptor } from '@wondertales/shared/games';
+import type { NarrationBlock } from '@wondertales/shared/stories';
 import type { Language } from '../storytellers';
 
 export type BookStatus = 'draft' | 'generating' | 'ready' | 'failed';
@@ -18,6 +19,7 @@ export interface BookSummary {
   mode: BookMode;
   language: Language;
   storyteller: string;
+  defaultVoice: string;
   coverImageUrl: string | null;
   pageCount: number;
   /** Number of times the user has marked this book as fully read. */
@@ -37,9 +39,11 @@ export interface BookChoice {
 export interface BookPagePayload {
   id: string;
   pageNumber: number;
+  pageType?: 'story' | 'game';
   title: string;
   content: string;
   narrationText: string;
+  narrationBlocks: NarrationBlock[];
   imageUrl: string | null;
   audioUrl: string | null;
   game: StoryGameDescriptor | null;
@@ -51,25 +55,4 @@ export interface BookDetail extends BookSummary {
   characterDescription: string | null;
   titleAudioUrl: string | null;
   pages: BookPagePayload[];
-}
-
-export interface CreateBookInput {
-  mode: BookMode;
-  language: Language;
-  storyteller: string;
-  /** Free-form theme. Ignored when `templateId` is provided. */
-  theme?: string;
-  /** Story template id — server resolves its prompt text from the database. */
-  templateId?: string;
-  childProfileId?: string;
-}
-
-export interface CreatedBookResponse {
-  id: string;
-  title: string;
-  status: BookStatus;
-  mode: BookMode;
-  language: Language;
-  storyteller: string;
-  pageCount: number;
 }

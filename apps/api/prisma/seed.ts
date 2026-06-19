@@ -1,47 +1,9 @@
 import { createPrismaClient } from '../src/prisma/create-prisma-client';
-import {
-  getStorytellerPortraitUrl,
-  getStorytellerPreviewAudioUrl,
-  STORYTELLER_CATALOG,
-  SUPPORTED_LANGUAGES,
-} from '../src/storytellers/storyteller-catalog';
 
 const prisma = createPrismaClient();
 
 async function seedStorytellers() {
-  console.log('Seeding storytellers…');
-  let count = 0;
-  for (const storyteller of STORYTELLER_CATALOG) {
-    for (const language of SUPPORTED_LANGUAGES) {
-      const data = {
-        identifier: storyteller.identifier,
-        language,
-        name: storyteller.names[language],
-        model: storyteller.model,
-        voice: storyteller.voice,
-        imageUrl: getStorytellerPortraitUrl(storyteller.identifier),
-        previewAudioUrl: getStorytellerPreviewAudioUrl(
-          language,
-          storyteller.identifier,
-        ),
-        sortOrder: storyteller.sortOrder,
-        enabled: true,
-      };
-
-      await prisma.storyteller.upsert({
-        where: {
-          language_identifier: {
-            language,
-            identifier: storyteller.identifier,
-          },
-        },
-        create: data,
-        update: data,
-      });
-      count++;
-    }
-  }
-  console.log(`  upserted ${count} storyteller records`);
+  console.log('Storytellers are static; skipping database seed');
 }
 
 interface PublicTemplateSeed {

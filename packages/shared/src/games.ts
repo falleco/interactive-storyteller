@@ -1,3 +1,5 @@
+import type { NarrationAudioTiming } from './stories';
+
 export type GameAgeRange = {
   min: number;
   max: number;
@@ -21,6 +23,46 @@ export type AvailableStoryGame = {
   config: Record<string, unknown>;
 };
 
+export const STORY_GAME_NARRATION_CUES = [
+  {
+    id: 'start',
+    label: 'Start',
+  },
+  {
+    id: 'failure',
+    label: 'Failure move',
+  },
+  {
+    id: 'successMove',
+    label: 'Success move',
+  },
+  {
+    id: 'idle',
+    label: 'Idle call to action',
+  },
+  {
+    id: 'complete',
+    label: 'Complete',
+  },
+] as const;
+
+export type StoryGameNarrationCueId =
+  (typeof STORY_GAME_NARRATION_CUES)[number]['id'];
+
+export type StoryGameNarrationCue = {
+  text: string;
+  voice?: string | null;
+  audioUrl?: string | null;
+  audioObjectKey?: string | null;
+  audioTiming?: NarrationAudioTiming | null;
+};
+
+export type StoryGameNarration = Partial<
+  Record<StoryGameNarrationCueId, StoryGameNarrationCue>
+>;
+
+export type StoryGameNarrationByLanguage = Record<string, StoryGameNarration>;
+
 export type StoryGameDescriptor<TConfig = Record<string, unknown>> = {
   id: string;
   type: string;
@@ -28,6 +70,7 @@ export type StoryGameDescriptor<TConfig = Record<string, unknown>> = {
   ageRange: GameAgeRange;
   prompt: string;
   config: TConfig;
+  narration?: StoryGameNarrationByLanguage;
 };
 
 export const AVAILABLE_GAMES = [

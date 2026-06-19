@@ -1,0 +1,33 @@
+{
+  "name": "@wondertales/builder",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 4001",
+    "build": "next build",
+    "start": "next start --port 4001",
+    "tsc": "next typegen && tsc --noEmit",
+    "lint": "biome lint .",
+    "lint:fix": "biome check --write ."
+  },
+  "dependencies": {
+    "@inworld/tts": "^1.1.1",
+    "@phosphor-icons/react": "^2.1.10",
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "@wondertales/shared": "workspace:*",
+    "dotenv": "^17.4.2",
+    "next": "^16.2.1",
+    "openai": "^6.42.0",
+    "pg": "^8.21.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "~19.2.14",
+    "@types/react-dom": "^19.2.0",
+    "typescript": "^6.0.3"
+  }
+}

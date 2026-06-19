@@ -67,5 +67,9 @@ apps/api/coverage/
 # Prisma generated client (kept in node_modules by default; ignore custom outputs)
 apps/api/prisma/generated/
 
+# Builder local generated media (temporary until R2 upload pipeline exists)
+apps/builder/public/generated/
+
 # Build outputs
+apps/*/.next/
 packages/*/dist/

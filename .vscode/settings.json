@@ -6,7 +6,9 @@
     "source.organizeImports.biome": "explicit",
     "source.sortMembers": "explicit"
   },
-  "[typescript]": { "editor.defaultFormatter": "vscode.typescript-language-features" },
+  "[typescript]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
   "[typescriptreact]": { "editor.defaultFormatter": "biomejs.biome" },
   "[javascript]": { "editor.defaultFormatter": "biomejs.biome" },
   "[javascriptreact]": { "editor.defaultFormatter": "biomejs.biome" },

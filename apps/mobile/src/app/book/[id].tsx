@@ -1,12 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
-import {
-  type Href,
-  router,
-  useFocusEffect,
-  useLocalSearchParams,
-} from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import {
   SafeAreaView,
@@ -18,75 +13,11 @@ import {
   useBookDetail,
   useBooks,
 } from '~/features/books';
+import { buildStoryGameSessionKey } from '~/features/games/story-game-events';
 import { ModalHeader } from '~/features/settings';
 import { ThemedText } from '~/shared/components/themed-text';
 import { useThemeColor } from '~/shared/hooks/use-theme-color';
 import { cn } from '~/shared/lib/cn';
-
-function buildGameHref({
-  bookId,
-  gameId,
-  pageId,
-  config,
-}: {
-  bookId: string;
-  gameId: string;
-  pageId: string;
-  config: Record<string, unknown>;
-}) {
-  const params: [string, string][] = [
-    ['bookId', bookId],
-    ['pageId', pageId],
-  ];
-
-  const roundId = config.roundId;
-  if (typeof roundId === 'string' && roundId.trim()) {
-    params.push(['roundId', roundId.trim()]);
-  }
-
-  const targetWord = config.targetWord;
-  if (typeof targetWord === 'string' && targetWord.trim()) {
-    params.push(['targetWord', targetWord.trim()]);
-  }
-
-  const extraLetterCount = config.extraLetterCount;
-  if (
-    typeof extraLetterCount === 'number' &&
-    Number.isFinite(extraLetterCount)
-  ) {
-    params.push(['extraLetterCount', String(extraLetterCount)]);
-  }
-
-  const colorHexes = config.colorHexes;
-  if (Array.isArray(colorHexes)) {
-    const colors = colorHexes
-      .filter((color): color is string => typeof color === 'string')
-      .map((color) => color.trim())
-      .filter(Boolean);
-
-    if (colors.length > 0) {
-      params.push(['colorHexes', colors.join(',')]);
-    }
-  }
-
-  const patternIds = config.patternIds;
-  if (Array.isArray(patternIds)) {
-    const patterns = patternIds
-      .filter((pattern): pattern is string => typeof pattern === 'string')
-      .map((pattern) => pattern.trim())
-      .filter(Boolean);
-
-    if (patterns.length > 0) {
-      params.push(['patternIds', patterns.join(',')]);
-    }
-  }
-
-  const query = params
-    .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
-    .join('&');
-
-  return `/games/${gameId}?${query}` as Href;
-}
 
 export default function BookDetailScreen() {
   const backgroundColor = useThemeColor({}, 'background');
@@ -94,19 +25,8 @@ export default function BookDetailScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { book, isLoading, error, refetch } = useBookDetail(id ?? null);
-  const { completeRead, chooseNext } = useBooks();
-  const pendingGameKeyRef = useRef<string | null>(null);
+  const { completeRead, completeGame } = useBooks();
   const [completedGameKey, setCompletedGameKey] = useState<string | null>(null);
-
-  useFocusEffect(
-    useCallback(() => {
-      const pendingGameKey = pendingGameKeyRef.current;
-      if (!pendingGameKey) return;
-      pendingGameKeyRef.current = null;
-      setCompletedGameKey(pendingGameKey);
-      void refetch();
-    }, [refetch]),
-  );
 
   const handleClose = () => router.back();
 
@@ -120,17 +40,27 @@ export default function BookDetailScreen() {
     router.back();
   };
 
-  const handleChoose = async ({ choiceIndex }: { choiceIndex: number }) => {
+  const handleCompleteGame = async ({
+    page,
+    game,
+  }: {
+    page: BookDetail['pages'][number];
+    game: NonNullable<BookDetail['pages'][number]['game']>;
+  }) => {
     if (!book) return;
+    const gameKey = buildStoryGameSessionKey({
+      bookId: book.id,
+      pageId: page.id,
+      gameId: game.id,
+    });
     try {
-      await chooseNext({ bookId: book.id, choiceIndex });
+      await completeGame({ bookId: book.id, pageId: page.id, gameId: game.id });
+      setCompletedGameKey(gameKey);
+      await refetch();
     } catch (e) {
-      console.warn('[book] chooseNext failed', e);
+      console.warn('[book] completeGame failed', e);
+      throw e;
     }
-    // Force an immediate refetch so the polling loop restarts now that there's
-    // a new pending page coming in — otherwise we'd wait until the next idle
-    // refresh to notice.
-    await refetch();
   };
 
   // While the book is ready, render the player edge-to-edge — the slide's
@@ -141,22 +71,11 @@ export default function BookDetailScreen() {
   if (book && book.status === 'ready') {
     return (
       <View className="flex-1">
+        <Stack.Screen options={{ gestureEnabled: false, headerShown: false }} />
         <BookPlayer
           book={book}
           onComplete={handleComplete}
-          onChoose={handleChoose}
-          onStartGame={({ page, game }) => {
-            pendingGameKeyRef.current = `${book.id}:${page.id}:${game.id}`;
-            setCompletedGameKey(null);
-            router.push(
-              buildGameHref({
-                bookId: book.id,
-                gameId: game.id,
-                pageId: page.id,
-                config: game.config,
-              }),
-            );
-          }}
+          onCompleteGame={handleCompleteGame}
           completedGameKey={completedGameKey}
           onBack={handleClose}
         />
@@ -172,6 +91,7 @@ export default function BookDetailScreen() {
   if (!book) {
     return (
       <View className="flex-1" style={{ backgroundColor }}>
+        <Stack.Screen options={{ gestureEnabled: false, headerShown: false }} />
         <View
           pointerEvents="box-none"
           style={{ position: 'absolute', top: insets.top + 8, left: 16 }}
@@ -208,6 +128,7 @@ export default function BookDetailScreen() {
   // affordance while the cover and pages stream in.
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor }}>
+      <Stack.Screen options={{ gestureEnabled: false, headerShown: false }} />
       <ModalHeader title={book.title} onClose={handleClose} />
       <GeneratingView book={book} />
     </SafeAreaView>

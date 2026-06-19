@@ -3,10 +3,13 @@ import {
   Controller,
   Delete,
   Get,
+  GoneException,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
   Post,
+  Query,
   Sse,
   UseGuards,
 } from '@nestjs/common';
@@ -24,13 +27,11 @@ import {
 } from 'rxjs';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { SessionGuard } from '../auth/session.guard';
+import { isLanguage } from '../storytellers/storyteller-catalog';
 import { BookEventsService } from './book-events.service';
-import { BookGenerationService } from './book-generation.service';
 import type { BookDetail } from './books.service';
 import { BooksService } from './books.service';
-import { ChooseNextDto } from './dto/choose-next.dto';
 import { CompleteGameDto } from './dto/complete-game.dto';
-import { CreateBookDto } from './dto/create-book.dto';
 
 interface BookSseEvent {
   data: BookDetail | { type: 'ping' };
@@ -46,71 +47,58 @@ const SSE_HEARTBEAT_MS = 30_000;
 export class BooksController {
   constructor(
     private readonly books: BooksService,
-    private readonly generation: BookGenerationService,
     private readonly events: BookEventsService,
   ) {}
 
   @Get()
   @ApiOperation({ summary: 'List my books' })
-  list(@CurrentUser() user: PublicUser) {
-    return this.books.listForUser(user.id);
+  list(
+    @CurrentUser() user: PublicUser,
+    @Query('language') language?: string,
+    @Headers('accept-language') acceptLanguage?: string,
+  ) {
+    return this.books.listForUser(user.id, {
+      language: resolveCatalogLanguage(language, acceptLanguage),
+    });
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a book with pages (player payload)' })
-  get(@CurrentUser() user: PublicUser, @Param('id') id: string) {
-    return this.books.getOwnedDetailOrThrow({ id, userId: user.id });
+  get(
+    @CurrentUser() user: PublicUser,
+    @Param('id') id: string,
+    @Query('language') language?: string,
+    @Headers('accept-language') acceptLanguage?: string,
+  ) {
+    return this.books.getVisibleDetailOrThrow({
+      id,
+      userId: user.id,
+      language: resolveCatalogLanguage(language, acceptLanguage),
+    });
   }
 
   @Post()
   @ApiOperation({
-    summary: 'Create a new book and kick off generation',
+    summary: 'Deprecated: on-demand book creation is no longer available',
     description:
-      'Returns the book immediately with status="generating". Media (cover, audio, page images) renders asynchronously; poll GET /books/:id until status="ready". Interactive mode generates page 1 up-front and uses POST /books/:id/choice to append pages. Magic mode generates a full linear story with one minigame gate.',
+      'Wonder Tales now serves only pre-created published books from the curated catalog.',
   })
-  async create(@CurrentUser() user: PublicUser, @Body() dto: CreateBookDto) {
-    const params = {
-      userId: user.id,
-      language: dto.language,
-      storyteller: dto.storyteller,
-      theme: dto.theme,
-      templateId: dto.templateId,
-      childProfileId: dto.childProfileId ?? null,
-    };
-    const book =
-      dto.mode === 'interactive'
-        ? await this.generation.createInteractive(params)
-        : dto.mode === 'magic'
-          ? await this.generation.createMagic(params)
-          : await this.generation.createClassic(params);
-    return {
-      id: book.id,
-      title: book.title,
-      status: book.status,
-      mode: book.mode,
-      language: book.language,
-      storyteller: book.storyteller,
-      pageCount: book.pageCount,
-    };
+  create() {
+    throw new GoneException(
+      'On-demand story creation is no longer available. Use the published book catalog.',
+    );
   }
 
   @Post(':id/choice')
   @ApiOperation({
-    summary: 'Pick a choice on the latest page of an interactive book',
+    summary: 'Deprecated: on-demand branching is no longer available',
     description:
-      'Generates the next page using the chosen path. Returns the full book detail with the new page included (still generating media). Idempotent guard: rejects when a choice is already selected on the latest page.',
+      'Interactive branches are no longer generated at read time. All story content is pre-created.',
   })
-  async chooseNext(
-    @CurrentUser() user: PublicUser,
-    @Param('id') id: string,
-    @Body() dto: ChooseNextDto,
-  ) {
-    await this.generation.continueInteractive({
-      bookId: id,
-      userId: user.id,
-      choiceIndex: dto.choiceIndex,
-    });
-    return this.books.getOwnedDetailOrThrow({ id, userId: user.id });
+  chooseNext() {
+    throw new GoneException(
+      'On-demand story branching is no longer available. Books are fully pre-created.',
+    );
   }
 
   @Post(':id/pages/:pageId/game/complete')
@@ -121,24 +109,19 @@ export class BooksController {
       'Unlocks the following story pages in the mobile player. The book stream emits a fresh snapshot after completion.',
   })
   async completeGame(
-    @CurrentUser() user: PublicUser,
     @Param('id') id: string,
     @Param('pageId') pageId: string,
     @Body() dto: CompleteGameDto,
   ) {
-    await this.generation.completeMagicGame({
+    const isCuratedGame = await this.books.hasPublishedCuratedPageGame({
       bookId: id,
-      userId: user.id,
       pageId,
-      result: dto.gameId
-        ? {
-            gameId: dto.gameId,
-            completed: dto.completed ?? true,
-            score: dto.score ?? 1,
-            total: dto.total ?? 1,
-          }
-        : undefined,
+      gameId: dto.gameId,
     });
+    if (isCuratedGame) return;
+    throw new GoneException(
+      'Runtime-generated story games are no longer supported.',
+    );
   }
 
   @Post(':id/complete-read')
@@ -164,11 +147,18 @@ export class BooksController {
   stream(
     @CurrentUser() user: PublicUser,
     @Param('id') id: string,
+    @Query('language') language?: string,
+    @Headers('accept-language') acceptLanguage?: string,
   ): Observable<BookSseEvent> {
+    const catalogLanguage = resolveCatalogLanguage(language, acceptLanguage);
     // The initial fetch also validates ownership — if it throws, NestJS
     // converts the rejection into an error before the stream opens.
     const fetchSnapshot = () =>
-      this.books.getOwnedDetailOrThrow({ id, userId: user.id });
+      this.books.getVisibleDetailOrThrow({
+        id,
+        userId: user.id,
+        language: catalogLanguage,
+      });
 
     const snapshots$: Observable<BookSseEvent> = concat(
       defer(() => from(fetchSnapshot())),
@@ -183,4 +173,18 @@ export class BooksController {
 
     return merge(snapshots$, heartbeat$);
   }
+}
+
+function resolveCatalogLanguage(
+  requestedLanguage: string | undefined,
+  acceptLanguage: string | undefined,
+): string {
+  if (requestedLanguage && isLanguage(requestedLanguage)) {
+    return requestedLanguage;
+  }
+  for (const part of acceptLanguage?.split(',') ?? []) {
+    const code = part.trim().split(';')[0]?.split('-')[0];
+    if (code && isLanguage(code)) return code;
+  }
+  return 'en';
 }

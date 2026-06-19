@@ -42,14 +42,10 @@ const withPckFiles: ConfigPlugin = (config) => {
       console.log(`Copied ${sourcePath} to ${destPath}`);
 
       if (!project.hasFile(packName)) {
-        const packFile = project.addFile(
-          packName,
-          mainGroupKey,
-          {
-            defaultEncoding: 4,
-            lastKnownFileType: 'file',
-          },
-        );
+        const packFile = project.addFile(packName, mainGroupKey, {
+          defaultEncoding: 4,
+          lastKnownFileType: 'file',
+        });
 
         if (packFile) {
           packFile.uuid = project.generateUuid();

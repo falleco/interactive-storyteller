@@ -2,7 +2,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
 import { type Href, router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, FlatList, Pressable, View } from 'react-native';
+import { FlatList, Pressable, View } from 'react-native';
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -19,7 +19,7 @@ import { useColorSchemeContext } from '~/shared/theme/color-scheme-context';
 export default function HomeTab() {
   const backgroundColor = useThemeColor({}, 'background');
   const { user } = useAuth();
-  const { books, isLoading, error, refresh, remove } = useBooks();
+  const { books, isLoading, error, refresh } = useBooks();
   const { parent, refresh: refreshParent } = useParent();
   const { open: openSidebar } = useSidebar();
 
@@ -40,8 +40,8 @@ export default function HomeTab() {
     }
   }, [refresh]);
 
-  // Refetch on focus — the wizard modal mounts its own useBooks instance, so
-  // the create there doesn't reach this tab's state once we return.
+  // Refetch on focus so newly-published catalog books appear after the app
+  // returns to the tab.
   useFocusEffect(
     useCallback(() => {
       refresh();
@@ -88,26 +88,6 @@ export default function HomeTab() {
     });
   };
 
-  const handleDeleteBook = (id: string, title: string) => {
-    Alert.alert('Delete story', `Remove "${title}"? This cannot be undone.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await remove(id);
-          } catch (e) {
-            Alert.alert(
-              'Failed',
-              e instanceof Error ? e.message : 'Could not delete',
-            );
-          }
-        },
-      },
-    ]);
-  };
-
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor }}>
       <View className="flex-row items-center gap-3 px-5 pt-2 pb-1">
@@ -139,7 +119,7 @@ export default function HomeTab() {
       {!user ? (
         <View className="flex-1 items-center justify-center px-6">
           <ThemedText className="text-base text-gray-500 dark:text-zinc-400 text-center">
-            Sign in from the Settings tab to start creating stories.
+            Sign in from the Settings tab to read the story catalog.
           </ThemedText>
         </View>
       ) : (
@@ -165,17 +145,13 @@ export default function HomeTab() {
                 <ThemedText className="text-base text-gray-500 dark:text-zinc-400 text-center">
                   {error
                     ? `Couldn't load: ${error.message}`
-                    : 'No stories yet. Tap the purple + button to start.'}
+                    : 'No published stories are available yet.'}
                 </ThemedText>
               </View>
             ) : null
           }
           renderItem={({ item }) => (
-            <BookCard
-              book={item}
-              onPress={() => handleOpenBook(item.id)}
-              onLongPress={() => handleDeleteBook(item.id, item.title)}
-            />
+            <BookCard book={item} onPress={() => handleOpenBook(item.id)} />
           )}
         />
       )}

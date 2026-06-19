@@ -17,6 +17,7 @@ export default function GameScreen() {
       <View style={styles.missingScreen}>
         <Stack.Screen
           options={{
+            gestureEnabled: false,
             animation: 'slide_from_right',
           }}
         />
@@ -44,6 +45,7 @@ export default function GameScreen() {
       <View style={styles.missingScreen}>
         <Stack.Screen
           options={{
+            gestureEnabled: false,
             animation: 'slide_from_right',
           }}
         />
@@ -68,6 +70,7 @@ export default function GameScreen() {
     <View style={styles.screen}>
       <Stack.Screen
         options={{
+          gestureEnabled: false,
           animation: game.screen?.animation ?? 'slide_from_right',
         }}
       />

@@ -18,9 +18,8 @@ export default function StoryTemplatesListScreen() {
   const { user } = useAuth();
   const { templates, isLoading, error, refresh, remove } = useStoryTemplates();
 
-  // Only the user's own templates show up here — public templates are
-  // surfaced via the wonder-sheet wizard. Managing public ones isn't a
-  // user-facing concern on this screen.
+  // Only the user's own templates show up here. Public templates are managed
+  // from the builder/catalog workflow, not from the mobile settings screen.
   const ownedTemplates = useMemo(
     () => templates.filter((t) => t.isOwned),
     [templates],

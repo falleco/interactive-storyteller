@@ -9,7 +9,6 @@ import {
 } from '@nestjs/terminus';
 import type { Queue } from 'bullmq';
 import type Redis from 'ioredis';
-import { BOOK_MEDIA_QUEUE } from '../books/book-media.queue';
 import { PrismaService } from '../prisma/prisma.service';
 import { USER_EVENTS_QUEUE } from '../queue/user-events.queue';
 import { HEALTH_REDIS_CLIENT } from './health.tokens';
@@ -37,7 +36,6 @@ export class HealthController {
     private readonly redisIndicator: RedisHealthIndicator,
     private readonly prisma: PrismaService,
     @Inject(HEALTH_REDIS_CLIENT) private readonly redisClient: Redis,
-    @InjectQueue(BOOK_MEDIA_QUEUE) private readonly bookMediaQueue: Queue,
     @InjectQueue(USER_EVENTS_QUEUE) private readonly userEventsQueue: Queue,
   ) {}
 
@@ -62,7 +60,7 @@ export class HealthController {
       'Returns job counts (waiting, active, completed, failed, delayed) and pause state for every registered queue.',
   })
   async queues(): Promise<{ queues: QueueStats[] }> {
-    const queues: Queue[] = [this.bookMediaQueue, this.userEventsQueue];
+    const queues: Queue[] = [this.userEventsQueue];
     const stats = await Promise.all(queues.map((q) => readQueueStats(q)));
     return { queues: stats };
   }

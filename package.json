@@ -10,11 +10,13 @@
   "scripts": {
     "mobile": "yarn workspace @wondertales/mobile",
     "api": "yarn workspace @wondertales/api",
+    "builder": "yarn workspace @wondertales/builder",
     "shared": "yarn workspace @wondertales/shared",
     "dev:mobile": "yarn workspace @wondertales/mobile start",
     "dev:android": "yarn workspace @wondertales/mobile android",
     "dev:ios": "yarn workspace @wondertales/mobile ios",
     "dev:api": "yarn workspace @wondertales/api start:dev",
+    "dev:builder": "yarn workspace @wondertales/builder dev",
     "build": "yarn workspaces foreach -A --topological-dev --exclude @wondertales/root run build",
     "tsc": "yarn workspaces foreach -A --exclude @wondertales/root run tsc",
     "test": "yarn workspaces foreach -A --exclude @wondertales/root run test",

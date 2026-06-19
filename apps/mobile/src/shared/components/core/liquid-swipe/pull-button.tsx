@@ -1,28 +1,20 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Dimensions } from 'react-native';
 import Animated, {
-  interpolateColor,
   type SharedValue,
   useAnimatedStyle,
-  withTiming,
 } from 'react-native-reanimated';
 import type { SharedVector } from './utils';
 import { WaveSide } from './wave';
 
 const { width } = Dimensions.get('screen');
 const RADIUS = 22;
-const IDLE_COLOR = 'rgba(0, 0, 0, 0.18)';
-const HINT_COLOR = 'rgba(147, 51, 234, 0.95)'; // purple-600
+const EDGE_OUTSET = 8;
 
 interface PullButtonProps {
   position: SharedVector;
   side: WaveSide;
-  activeSide: SharedValue<WaveSide>;
-  /**
-   * 0..1 hint intensity. When > 0 the button tints purple to draw
-   * attention. Omit (or hold at 0) for the static idle look.
-   */
-  hintProgress?: SharedValue<number>;
+  visibility?: SharedValue<number>;
   /**
    * Signed translation (px) for the chevron — independently driven by
    * the slider so the icon can spring/wobble past its rest position
@@ -32,36 +24,36 @@ interface PullButtonProps {
 }
 
 /**
- * Visual affordance riding along the wave — a soft chevron the user can
- * pull from. Fades out while a drag is in progress so it doesn't fight
- * the wave for attention.
+ * Visual affordance riding along the wave — a solid chevron button the
+ * user can pull or tap from the exposed page edge.
  */
 export function PullButton({
   position,
   side,
-  activeSide,
-  hintProgress,
+  visibility,
   iconOffset,
 }: PullButtonProps) {
   const isLeft = side === WaveSide.LEFT;
 
   const style = useAnimatedStyle(() => {
-    const hintT = hintProgress?.value ?? 0;
-    const backgroundColor =
-      hintT > 0
-        ? interpolateColor(hintT, [0, 1], [IDLE_COLOR, HINT_COLOR])
-        : IDLE_COLOR;
+    const visible = visibility?.value ?? 1;
+
     return {
       position: 'absolute',
-      left: isLeft ? position.x.value - RADIUS * 2 : width - position.x.value,
+      left: isLeft
+        ? position.x.value - RADIUS * 2 - EDGE_OUTSET
+        : width - position.x.value + EDGE_OUTSET,
       top: position.y.value - RADIUS,
       width: RADIUS * 2,
       height: RADIUS * 2,
       borderRadius: RADIUS,
+      borderWidth: 2,
+      borderColor: '#ffffff',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor,
-      opacity: withTiming(activeSide.value === WaveSide.NONE ? 0.85 : 0),
+      backgroundColor: '#050505',
+      opacity: visible,
+      transform: [{ scale: 0.86 + visible * 0.14 }],
     };
   });
 

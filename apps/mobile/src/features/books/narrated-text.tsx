@@ -1,3 +1,7 @@
+import type {
+  NarrationAudioTiming,
+  NarrationWordTiming,
+} from '@wondertales/shared/stories';
 import { useEffect, useMemo } from 'react';
 import Animated, {
   Easing,
@@ -19,7 +23,11 @@ interface NarratedTextProps extends Omit<ThemedTextProps, 'children'> {
    * from `dimOpacity` to 1 so the kid can see where the narration is.
    */
   progress: number;
+  currentTime?: number;
+  timing?: NarrationAudioTiming | null;
   dimOpacity?: number;
+  activeColor?: string;
+  inactiveColor?: string;
   /**
    * Width (in characters) of the fade zone leading up to a word's start.
    * Wider zones make the transition feel smoother but also "leak"
@@ -41,6 +49,18 @@ interface Token {
   value: string;
   start: number;
   end: number;
+}
+
+interface TextWordSpan {
+  word: string;
+  normalized: string;
+  start: number;
+  end: number;
+}
+
+interface AlignedWordTiming {
+  word: NarrationWordTiming;
+  span: TextWordSpan;
 }
 
 function tokenize(text: string): Token[] {
@@ -72,28 +92,43 @@ function tokenize(text: string): Token[] {
 export function NarratedText({
   text,
   progress,
+  currentTime,
+  timing,
   dimOpacity = DEFAULT_DIM,
+  activeColor,
+  inactiveColor,
   fadeChars = DEFAULT_FADE_CHARS,
   ...themedTextProps
 }: NarratedTextProps) {
   const scheme = useColorScheme();
   const tokens = useMemo(() => tokenize(text), [text]);
   const totalChars = useMemo(() => Math.max(text.length, 1), [text.length]);
+  const alignedTimings = useMemo(
+    () => alignWordTimingsToText(text, timing?.words ?? []),
+    [text, timing?.words],
+  );
 
-  const baseColor = scheme === 'dark' ? '#ffffff' : '#000000';
+  const baseColor = activeColor ?? (scheme === 'dark' ? '#ffffff' : '#000000');
   const dimColor =
-    scheme === 'dark'
+    inactiveColor ??
+    (scheme === 'dark'
       ? `rgba(255, 255, 255, ${dimOpacity})`
-      : `rgba(0, 0, 0, ${dimOpacity})`;
+      : `rgba(0, 0, 0, ${dimOpacity})`);
 
-  const cursorChars = useSharedValue(progress * totalChars);
+  const targetCursor = resolveCursorChars({
+    alignedTimings,
+    currentTime,
+    fallbackProgress: progress,
+    totalChars,
+  });
+  const cursorChars = useSharedValue(targetCursor);
 
   useEffect(() => {
-    cursorChars.value = withTiming(progress * totalChars, {
+    cursorChars.value = withTiming(targetCursor, {
       duration: TWEEN_DURATION_MS,
       easing: Easing.linear,
     });
-  }, [progress, totalChars, cursorChars]);
+  }, [targetCursor, cursorChars]);
 
   return (
     <ThemedText {...themedTextProps}>
@@ -110,6 +145,80 @@ export function NarratedText({
       ))}
     </ThemedText>
   );
+}
+
+function resolveCursorChars(input: {
+  alignedTimings: AlignedWordTiming[];
+  currentTime: number | undefined;
+  fallbackProgress: number;
+  totalChars: number;
+}): number {
+  if (
+    input.currentTime === undefined ||
+    input.alignedTimings.length === 0 ||
+    input.fallbackProgress >= 1
+  ) {
+    return input.fallbackProgress * input.totalChars;
+  }
+
+  let lastEnd = 0;
+  for (const item of input.alignedTimings) {
+    if (input.currentTime < item.word.startTime) return lastEnd;
+    if (input.currentTime <= item.word.endTime) {
+      const spanDuration = Math.max(
+        item.word.endTime - item.word.startTime,
+        0.01,
+      );
+      const wordProgress =
+        (input.currentTime - item.word.startTime) / spanDuration;
+      return (
+        item.span.start +
+        Math.min(Math.max(wordProgress, 0), 1) *
+          (item.span.end - item.span.start)
+      );
+    }
+    lastEnd = item.span.end;
+  }
+
+  return input.totalChars;
+}
+
+function alignWordTimingsToText(
+  text: string,
+  words: NarrationWordTiming[],
+): AlignedWordTiming[] {
+  const textWords = extractTextWordSpans(text);
+  if (textWords.length === 0 || words.length === 0) return [];
+
+  const aligned: AlignedWordTiming[] = [];
+  let searchFrom = 0;
+  for (const word of words) {
+    const normalized = normalizeAlignmentWord(word.word);
+    if (!normalized) continue;
+    const spanIndex = textWords.findIndex(
+      (span, index) => index >= searchFrom && span.normalized === normalized,
+    );
+    if (spanIndex === -1) continue;
+    aligned.push({ word, span: textWords[spanIndex] });
+    searchFrom = spanIndex + 1;
+  }
+  return aligned;
+}
+
+function extractTextWordSpans(text: string): TextWordSpan[] {
+  return [...text.matchAll(/[A-Za-z0-9]+(?:'[A-Za-z0-9]+)?/g)].map((match) => ({
+    word: match[0],
+    normalized: normalizeAlignmentWord(match[0]),
+    start: match.index ?? 0,
+    end: (match.index ?? 0) + match[0].length,
+  }));
+}
+
+function normalizeAlignmentWord(word: string): string {
+  return word
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .trim();
 }
 
 interface NarratedWordProps {

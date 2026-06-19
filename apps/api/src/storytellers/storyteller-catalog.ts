@@ -1,79 +1,64 @@
-/**
- * Curated list of storytellers. Same catalog used by the web project — names
- * are translated per supported language. Voice IDs come from Minimax's
- * speech-2.8-turbo model on Replicate.
- */
+import {
+  DEFAULT_INWORLD_TTS_MODEL,
+  DEFAULT_STORYTELLER_IDENTIFIER,
+  getStorytellerByIdentifier,
+  isLanguage,
+  type Language,
+  STORYTELLER_CATALOG,
+  SUPPORTED_LANGUAGES,
+} from '@wondertales/shared/storytellers';
 
-export const SUPPORTED_LANGUAGES = ['en', 'fr', 'pt', 'it'] as const;
-export type Language = (typeof SUPPORTED_LANGUAGES)[number];
+export {
+  DEFAULT_INWORLD_TTS_MODEL,
+  DEFAULT_STORYTELLER_IDENTIFIER,
+  getStorytellerByIdentifier,
+  isLanguage,
+  type Language,
+  STORYTELLER_CATALOG,
+  SUPPORTED_LANGUAGES,
+};
 
-export const DEFAULT_STORYTELLER_IDENTIFIER = 'sparkle';
-export const DEFAULT_STORYTELLER_MODEL = 'minimax/speech-2.8-turbo';
-
-export interface StorytellerCatalogEntry {
+export interface StaticStoryteller {
+  id: string;
   identifier: string;
-  names: Record<Language, string>;
-  voice: string;
+  language: Language;
+  name: string;
   model: string;
+  voice: string;
+  imageUrl: string;
+  previewAudioUrl: string;
+  enabled: boolean;
   sortOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-export const STORYTELLER_CATALOG: readonly StorytellerCatalogEntry[] = [
-  {
-    identifier: 'sparkle',
-    names: { en: 'Sparkle', fr: 'Étincelle', pt: 'Faísca', it: 'Scintilla' },
-    voice: 'Lively_Girl',
-    model: DEFAULT_STORYTELLER_MODEL,
-    sortOrder: 10,
-  },
-  {
-    identifier: 'breeze',
-    names: { en: 'Breeze', fr: 'Brise', pt: 'Brisa', it: 'Brezza' },
-    voice: 'Decent_Boy',
-    model: DEFAULT_STORYTELLER_MODEL,
-    sortOrder: 20,
-  },
-  {
-    identifier: 'star',
-    names: { en: 'Star', fr: 'Étoile', pt: 'Estrela', it: 'Stella' },
-    voice: 'Inspirational_girl',
-    model: DEFAULT_STORYTELLER_MODEL,
-    sortOrder: 30,
-  },
-  {
-    identifier: 'firework',
-    names: {
-      en: 'Firework',
-      fr: "Feu d'artifice",
-      pt: 'Foguinho',
-      it: 'Fuoco',
-    },
-    voice: 'Exuberant_Girl',
-    model: DEFAULT_STORYTELLER_MODEL,
-    sortOrder: 40,
-  },
-  {
-    identifier: 'thunder',
-    names: { en: 'Thunder', fr: 'Tonnerre', pt: 'Trovão', it: 'Tuono' },
-    voice: 'Deep_Voice_Man',
-    model: DEFAULT_STORYTELLER_MODEL,
-    sortOrder: 50,
-  },
-  {
-    identifier: 'noble',
-    names: { en: 'Noble', fr: 'Noble', pt: 'Nobre', it: 'Nobile' },
-    voice: 'Elegant_Man',
-    model: DEFAULT_STORYTELLER_MODEL,
-    sortOrder: 60,
-  },
-] as const;
+const STATIC_STORYTELLER_TIMESTAMP = new Date('2026-01-01T00:00:00.000Z');
 
-/** Build a storyteller portrait URL — host once we ship a CDN; placeholder for now. */
+export function listStaticStorytellersByLanguage(
+  language: Language,
+): StaticStoryteller[] {
+  return STORYTELLER_CATALOG.map((storyteller) =>
+    toStaticStoryteller(storyteller.identifier, language),
+  ).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
+}
+
+export function getStaticStoryteller(
+  language: Language,
+  identifier: string,
+): StaticStoryteller | null {
+  const storyteller = STORYTELLER_CATALOG.find(
+    (item) => item.identifier === identifier,
+  );
+  return storyteller
+    ? toStaticStoryteller(storyteller.identifier, language)
+    : null;
+}
+
 export function getStorytellerPortraitUrl(identifier: string): string {
   return `https://placeholder.invalid/storytellers/${identifier}.svg`;
 }
 
-/** Build a preview-audio URL per language and storyteller. */
 export function getStorytellerPreviewAudioUrl(
   language: Language,
   identifier: string,
@@ -81,6 +66,26 @@ export function getStorytellerPreviewAudioUrl(
   return `https://placeholder.invalid/storytellers/${language}/${identifier}/preview.mp3`;
 }
 
-export function isLanguage(value: string): value is Language {
-  return (SUPPORTED_LANGUAGES as readonly string[]).includes(value);
+function toStaticStoryteller(
+  identifier: string,
+  language: Language,
+): StaticStoryteller {
+  const storyteller = getStorytellerByIdentifier(identifier);
+  return {
+    id: `${language}-${storyteller.identifier}`,
+    identifier: storyteller.identifier,
+    language,
+    name: storyteller.names[language] ?? storyteller.names.en,
+    model: storyteller.model,
+    voice: storyteller.voice,
+    imageUrl: getStorytellerPortraitUrl(storyteller.identifier),
+    previewAudioUrl: getStorytellerPreviewAudioUrl(
+      language,
+      storyteller.identifier,
+    ),
+    enabled: true,
+    sortOrder: storyteller.sortOrder,
+    createdAt: STATIC_STORYTELLER_TIMESTAMP,
+    updatedAt: STATIC_STORYTELLER_TIMESTAMP,
+  };
 }

@@ -8,6 +8,8 @@
     ".": "./src/index.ts",
     "./auth": "./src/auth.ts",
     "./games": "./src/games.ts",
+    "./stories": "./src/stories.ts",
+    "./storytellers": "./src/storytellers.ts",
     "./user": "./src/user.ts"
   },
   "scripts": {

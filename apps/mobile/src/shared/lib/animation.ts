@@ -12,9 +12,9 @@ export type AnimateTarget = {
 };
 
 /**
- * Executa uma ou várias animações.
- * - Se for 1 target: anima sozinho.
- * - Se for vários targets: roda em paralelo e só resolve quando todos acabam.
+ * Runs one or more animations.
+ * - With one target: animates it directly.
+ * - With multiple targets: runs them in parallel and resolves after all finish.
  */
 export function animate(...targets: AnimateTarget[]): Promise<void> {
   const promises = targets.map(
